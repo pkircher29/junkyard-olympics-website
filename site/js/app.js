@@ -11,6 +11,7 @@
     if (parts[0] === 'players') return { name: 'players' };
     if (parts[0] === 'new') return { name: 'new' };
     if (parts[0] === 'join') return { name: 'join', code: parts[1] || '' };
+    if (parts[0] === 'games') return { name: 'games' };
     if (parts[0] === 'qr') return { name: 'qr' };
     if (parts[0] === 'hq') return { name: 'hq' };
     if (parts[0] === 't' && parts[1]) return { name: 'tournament', tid: parts[1] };
@@ -55,6 +56,7 @@
       if (hqUrl) tvLink.href = hqUrl + '/tv.html';
     }
     switch (route.name) {
+      case 'games':      app.innerHTML = Views.gamesSignup(); break;
       case 'players':    app.innerHTML = Views.players(); break;
       case 'new':
         app.innerHTML = Auth.isHost ? Views.newTournament()
@@ -246,7 +248,8 @@
         if (!pass) { toast('This signup link is broken — grab the host.', 'error'); break; }
         Auth.login(name, pass).then(s => {
           toast(`Welcome to the Junkyard Olympics, <b>${esc(s.name)}</b>! 🏆`, 'ok');
-          location.hash = '#/';
+          Store.ensurePlayer(s.name);
+          location.hash = s.role === 'host' ? '#/' : '#/games';
         }).catch(err => toast(esc(err.message), 'error'));
         break;
       }
@@ -276,6 +279,17 @@
         break;
       }
 
+      /* event signup: Chris's flow — players enter the games they'll play */
+      case 'toggle-game': {
+        const p = Store.ensurePlayer(Auth.name);
+        if (!p) { toast('Log in first!', 'error'); break; }
+        const on = Store.toggleSignup(p.id, el.dataset.game);
+        toast(on ? `🎟 You're in for <b>${esc(el.dataset.game)}</b>!`
+                 : `Backed out of ${esc(el.dataset.game)}.`, 'ok');
+        render();
+        break;
+      }
+
       /* LAN control-tower bridge */
       case 'hq-save': {
         const v = $('#hq-url').value.trim().replace(/\/+$/, '');
@@ -293,6 +307,8 @@
         if (!name || !pass) { toast('Enter your name and the party password.', 'error'); break; }
         Auth.login(name, pass).then(s => {
           toast(s.role === 'host' ? `🎛 Welcome, host <b>${esc(s.name)}</b>!` : `Welcome, <b>${esc(s.name)}</b>! 🏆`, 'ok');
+          // guests go straight to step 2: pick your events
+          if (s.role !== 'host') { Store.ensurePlayer(s.name); location.hash = '#/games'; }
           render();
         }).catch(err => toast(esc(err.message), 'error'));
         break;

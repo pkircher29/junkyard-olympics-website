@@ -8,7 +8,7 @@ const Store = (() => {
 
   function blank() {
     return { players: [], staticTeams: [], tournaments: [],
-             settings: {},
+             settings: {}, signups: [],
              deleted: { players: {}, staticTeams: {}, tournaments: {} } };
   }
 
@@ -17,6 +17,7 @@ const Store = (() => {
       const s = JSON.parse(localStorage.getItem(KEY));
       if (s && !s.deleted) s.deleted = { players: {}, staticTeams: {}, tournaments: {} };
       if (s && !s.settings) s.settings = {};
+      if (s && !s.signups) s.signups = [];
       return s;
     }
     catch { return null; }
@@ -173,6 +174,50 @@ const Store = (() => {
     return [...rows.values()].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
   }
 
+  /* ---------- event signups (Chris's flow: players pick their games) ---------- */
+
+  function playerByName(name) {
+    const n = String(name || '').trim().toLowerCase();
+    return state.players.find(p => p.name.toLowerCase() === n) || null;
+  }
+
+  // a logged-in guest IS a competitor — create their player record on demand
+  function ensurePlayer(name) {
+    let p = playerByName(name);
+    if (!p && String(name || '').trim()) {
+      addPlayers([name]);
+      p = playerByName(name);
+    }
+    return p;
+  }
+
+  function signupOf(playerId) {
+    return (state.signups || []).find(s => s.id === playerId) || null;
+  }
+
+  function gamesOf(playerId) {
+    const s = signupOf(playerId);
+    return s ? s.games : [];
+  }
+
+  function toggleSignup(playerId, game) {
+    if (!state.signups) state.signups = [];
+    let s = signupOf(playerId);
+    if (!s) { s = { id: playerId, games: [], updatedAt: now() }; state.signups.push(s); }
+    const i = s.games.indexOf(game);
+    if (i >= 0) s.games.splice(i, 1); else s.games.push(game);
+    s.updatedAt = now();
+    save();
+    return s.games.includes(game);
+  }
+
+  function signupsFor(game) {
+    return (state.signups || [])
+      .filter(s => s.games.includes(game))
+      .map(s => s.id)
+      .filter(id => state.players.some(p => p.id === id));
+  }
+
   /* ---------- shared settings (synced last-write-wins) ---------- */
 
   function setting(key) {
@@ -219,6 +264,7 @@ const Store = (() => {
     addStaticTeam, removeStaticTeam, confirmStaticTeam,
     tournament, removeTournament, teamOf, teamName,
     busyPlayers, leaderboard, setting, setSetting,
+    playerByName, ensurePlayer, gamesOf, toggleSignup, signupsFor,
     exportJSON, importJSON, resetAll,
   };
 })();

@@ -138,7 +138,7 @@ const Views = (() => {
       <div class="sec-head">
         <h2>Tournaments</h2>
         ${Auth.isHost ? '<a class="btn btn-accent" href="#/new">+ New Tournament</a>'
-          : '<a class="btn btn-ghost btn-sm" href="#/players">🤝 Form your team</a>'}
+          : '<span><a class="btn btn-accent btn-sm" href="#/games">🎟 Pick your events</a> <a class="btn btn-ghost btn-sm" href="#/players">🤝 Form your team</a></span>'}
       </div>
       ${s.tournaments.length
         ? `<div class="tgrid">${cards}</div>`
@@ -267,6 +267,37 @@ const Views = (() => {
     </section>`;
   }
 
+  /* =============== event signup (Chris's "pick my events" flow) =============== */
+
+  function gamesSignup() {
+    const me = Store.playerByName(Auth.name);
+    const myGames = me ? Store.gamesOf(me.id) : [];
+    const cards = GAME_PRESETS.filter(g => g.name !== 'Custom').map(g => {
+      const entered = Store.signupsFor(g.name);
+      const iAmIn = myGames.includes(g.name);
+      return `
+      <div class="card gamecard">
+        <div class="sec-head" style="margin:0 0 6px">
+          <h3>${g.icon} ${esc(g.name)}</h3>
+          <button class="btn ${iAmIn ? 'btn-ghost' : 'btn-accent'} btn-sm" data-action="toggle-game" data-game="${esc(g.name)}">
+            ${iAmIn ? '✓ Entered — tap to leave' : "I'M IN →"}</button>
+        </div>
+        <p class="muted small">${entered.length
+          ? `${entered.length} entered: ` + entered.map(Store.playerName).map(esc).join(' · ')
+          : 'no entries yet — be the first'}</p>
+      </div>`;
+    }).join('');
+    return `
+    <section>
+      <p class="muted small" style="text-transform:uppercase;letter-spacing:.12em">your day in the yard</p>
+      <h2 style="margin-top:2px">Pick your events</h2>
+      <p class="muted small">Hey, <b>${esc(Auth.name)}</b> — enter everything you want to play.
+        The hosts draw each bracket from these entry lists. Change your mind any time before a bracket starts.
+        Want a set partner? <a href="#/players" style="color:var(--accent)">Form a team</a> after you've entered.</p>
+      <div class="teamgrid" style="margin-top:14px">${cards}</div>
+    </section>`;
+  }
+
   /* =============== players & teams =============== */
 
   function players() {
@@ -348,6 +379,12 @@ const Views = (() => {
   function resetDraft() { draft = newDraft(); }
   function getDraft() { if (!draft) draft = newDraft(); return draft; }
 
+  function draftGameName() {
+    const d = getDraft();
+    const preset = GAME_PRESETS[d.gameIdx];
+    return preset.name === 'Custom' ? (d.customGame.trim() || 'Custom Game') : preset.name;
+  }
+
   function shuffleDraftTeams() {
     const d = getDraft();
     const taken = new Set();
@@ -355,7 +392,11 @@ const Views = (() => {
       const st = Store.state.staticTeams.find(t => t.id === id);
       if (st) st.playerIds.forEach(p => taken.add(p));
     }
-    const free = shuffle(Store.state.players.filter(p => !taken.has(p.id)).map(p => p.id));
+    // draw from the players who signed up for THIS game; whole pool if nobody has
+    const enrolled = new Set(Store.signupsFor(draftGameName()));
+    let candidates = Store.state.players.filter(p => !taken.has(p.id));
+    if (enrolled.size) candidates = candidates.filter(p => enrolled.has(p.id));
+    const free = shuffle(candidates.map(p => p.id));
     const groups = chunk(free, d.teamSize);
     const full = groups.filter(g => g.length === d.teamSize);
     const leftover = groups.filter(g => g.length < d.teamSize).flat();
@@ -437,7 +478,12 @@ const Views = (() => {
           <legend>Teams</legend>
           ${s.staticTeams.length ? `<p class="muted small">Include static teams:</p><div class="checkgrid">${staticBoxes}</div>` : ''}
           <div class="sec-head" style="margin-top:12px">
-            <p class="muted small">Random teams drawn from the remaining player pool:</p>
+            <p class="muted small">${(() => {
+              const n = Store.signupsFor(draftGameName()).length;
+              return n
+                ? `🎟 <b>${n}</b> player${n === 1 ? '' : 's'} signed up for ${esc(draftGameName())} — random teams draw from them:`
+                : `No event signups for ${esc(draftGameName())} yet — random teams draw from the whole pool:`;
+            })()}</p>
             <button class="btn btn-ghost btn-sm" data-action="draft-shuffle">🎲 ${d.randomTeams.length ? 'Reshuffle' : 'Draw teams'}</button>
           </div>
           <div class="rteams">${preview || '<span class="muted small">No random teams drawn yet.</span>'}</div>
@@ -671,6 +717,6 @@ const Views = (() => {
   }
 
   return { overview, players, newTournament, tournamentPage, scorePage, loginGate,
-           joinGate, qrPage, hqPage, loadHqStandings,
+           joinGate, qrPage, hqPage, loadHqStandings, gamesSignup,
            getDraft, resetDraft, shuffleDraftTeams, draftTeamCount };
 })();
