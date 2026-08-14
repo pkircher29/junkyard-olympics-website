@@ -70,6 +70,29 @@ Next up (in value order): port TV broadcast natively, Flair, confirm/dispute
 results, consolation bracket path, cannon engine. `lan-server/` stays intact
 as the reference implementation and the internet-outage fallback.
 
+## Photo Vault integration
+
+The founder-approved photo vault is being integrated on `feat/photo-vault-merge`
+from this exact canonical tree. Signed-in guests will get a native **Photo
+Vault** route in Paul's hosted app. Their existing Paul session is validated
+server-to-server and mapped by immutable external subject id into the local
+vault; guests do not create a second display-name identity.
+
+All image bytes, consent, moderation, plaques, removal state, backups, and
+exports remain in `lan-server/` under its configured `DATA_DIR`. No photo is
+stored in D1, room sync, localStorage, GitHub, Spotify, or a public static
+directory. Cloud/model uncertainty stays private for organizer review. The TV
+reel is ambient only: official calls, results, recovery, and audio always win.
+
+Frozen requirements and execution gates:
+
+- [`docs/PHOTO-VAULT-SPEC.md`](docs/PHOTO-VAULT-SPEC.md)
+- [`docs/PHOTO-VAULT-PLAN.md`](docs/PHOTO-VAULT-PLAN.md)
+
+Git merge, Cloudflare worker deployment, and live LAN deployment are three
+separate approval boundaries. Until exact-snapshot review and real-device
+rehearsal pass, the current party runtimes stay unchanged.
+
 ## Credits
 
 - **Paul Kircher** — bracket engine (single/double elim, seeded draws), medal
