@@ -154,16 +154,35 @@
           break;
         }
         const name = censorName(raw);
-        Store.addStaticTeam(name, ids);
-        toast(name === raw
-          ? `Team <b>${esc(name)}</b> created. 🤝`
-          : `Team <b>${esc(name)}</b> created — name cleaned up by the censor. 🧼`, 'ok');
+        // guest-formed teams wait for the partner (or a host) to confirm
+        Store.addStaticTeam(name, ids, Auth.isHost ? {} : { pending: true, createdBy: Auth.name || '' });
+        const cleaned = name === raw ? '' : ' (name cleaned up by the censor 🧼)';
+        toast(Auth.isHost
+          ? `Team <b>${esc(name)}</b> created.${cleaned}`
+          : `Team <b>${esc(name)}</b> proposed${cleaned} — your partner (or a host) confirms it on this page. ⏳`, 'ok');
+        render();
+        break;
+      }
+      case 'confirm-team': {
+        const t = Store.state.staticTeams.find(x => x.id === el.dataset.id);
+        if (!t) break;
+        const me = (Auth.name || '').toLowerCase();
+        const isPartner = t.playerIds.some(pid => Store.playerName(pid).toLowerCase() === me) &&
+                          me !== (t.createdBy || '').toLowerCase();
+        if (!Auth.isHost && !isPartner) {
+          toast('Only the other teammate (or a host) can confirm this team.', 'error');
+          break;
+        }
+        Store.confirmStaticTeam(t.id);
+        toast(`🤝 <b>${esc(t.name)}</b> is official!`, 'ok');
         render();
         break;
       }
       case 'remove-team': {
         const team = Store.state.staticTeams.find(t => t.id === el.dataset.id);
-        const mine = team && team.playerIds.some(pid => Store.playerName(pid).toLowerCase() === (Auth.name || '').toLowerCase());
+        const me = (Auth.name || '').toLowerCase();
+        const mine = team && (team.playerIds.some(pid => Store.playerName(pid).toLowerCase() === me) ||
+                              (team.createdBy || '').toLowerCase() === me);
         if (!Auth.isHost && !mine) { toast('You can only delete a team you\'re on (hosts can delete any).', 'error'); break; }
         Store.removeStaticTeam(el.dataset.id);
         render();
@@ -232,12 +251,9 @@
         break;
       }
 
-      /* host QR poster generator */
+      /* host QR poster generator — plain site link, no secrets in the QR */
       case 'qr-make': {
-        const pass = $('#qr-pass').value;
-        if (!pass) { toast('Enter the party password to bake it into the QR.', 'error'); break; }
-        const code = btoa(unescape(encodeURIComponent(pass)));
-        const url = `${location.origin}/#/join/${encodeURIComponent(code)}`;
+        const url = `${location.origin}/`;
         const qr = qrcode(0, 'M');
         qr.addData(url);
         qr.make();
@@ -246,7 +262,8 @@
             <img class="qr-hero" src="assets/junkyard-hero.jpg" alt="">
             <h2>SCAN TO JOIN THE GAMES</h2>
             <div class="qr-code">${qr.createSvgTag({ cellSize: 6, margin: 2 })}</div>
-            <p>Point your camera here → type your name → compete. 🏆🎶</p>
+            <p>Scan → type your name + the party password → compete. 🏆🎶</p>
+            <p class="qr-pass-line">PARTY PASSWORD: ________________</p>
           </div>
           <div class="addrow" style="margin-top:10px">
             <input value="${esc(url)}" readonly onclick="this.select()">

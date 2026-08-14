@@ -37,7 +37,8 @@ const Views = (() => {
     </section>`;
   }
 
-  // Host tool: bake the party password into a QR poster for the gate/TV.
+  // Host tool: QR poster that simply opens the site — guests log in with
+  // their name + the guest password (posted at the party).
   function qrPage() {
     if (!Auth.isHost) return `<section><div class="empty">🎛 Hosts only.</div></section>`;
     return `
@@ -45,13 +46,10 @@ const Views = (() => {
       <a class="backlink" href="#/">← Overview</a>
       <h2>📱 Party signup QR</h2>
       <div class="card form">
-        <p class="muted small">Enter the party password — it gets baked into the link so guests
-          scan, type their name, and they're in. One scan signs them into the scoreboard <b>and</b> the jukebox.
-          Print it and tape it to the cooler.</p>
-        <div class="addrow">
-          <input id="qr-pass" type="text" placeholder="party password" autocomplete="off">
-          <button class="btn btn-accent" data-action="qr-make">⚙ Generate poster</button>
-        </div>
+        <p class="muted small">The QR just opens the website — guests type their name and the
+          guest password (write it on the poster or the cooler). One login covers the scoreboard
+          <b>and</b> the jukebox.</p>
+        <button class="btn btn-accent" data-action="qr-make">⚙ Generate poster</button>
         <div id="qr-out"></div>
       </div>
     </section>`;
@@ -282,12 +280,23 @@ const Views = (() => {
         <button class="x" data-action="remove-player" data-id="${p.id}" title="remove">×</button>
       </span>`).join('');
 
-    const teamCards = s.staticTeams.map(t => `
+    const me = (Auth.name || '').toLowerCase();
+    const teamCards = s.staticTeams.map(t => {
+      const isPartner = t.playerIds.some(pid => Store.playerName(pid).toLowerCase() === me) &&
+                        me !== (t.createdBy || '').toLowerCase();
+      const canConfirm = t.pending && (Auth.isHost || isPartner);
+      return `
       <div class="card teamcard">
         <div class="sec-head"><h3>${esc(t.name)}</h3>
-          <button class="btn btn-ghost btn-sm" data-action="remove-team" data-id="${t.id}">Delete</button></div>
+          <span>
+            ${t.pending ? '<span class="chip chip-active">⏳ pending</span>' : ''}
+            ${canConfirm ? `<button class="btn btn-accent btn-sm" data-action="confirm-team" data-id="${t.id}">✔ Confirm</button>` : ''}
+            <button class="btn btn-ghost btn-sm" data-action="remove-team" data-id="${t.id}">${t.pending ? 'Decline' : 'Delete'}</button>
+          </span></div>
         <div class="muted">${t.playerIds.map(Store.playerName).map(esc).join(' · ')}</div>
-      </div>`).join('');
+        ${t.pending ? `<p class="muted small">proposed by ${esc(t.createdBy || '?')} — the other teammate (or a host) confirms before it enters tournaments</p>` : ''}
+      </div>`;
+    }).join('');
 
     const boxes = s.players.map(p => `
       <label class="check"><input type="checkbox" class="team-pick" value="${p.id}"> ${esc(p.name)}</label>`).join('');
@@ -367,7 +376,7 @@ const Views = (() => {
       <button class="gbtn ${i === d.gameIdx ? 'on' : ''}" data-action="draft-game" data-i="${i}">
         <span>${g.icon}</span>${g.name}</button>`).join('');
 
-    const staticBoxes = s.staticTeams.map(t => `
+    const staticBoxes = s.staticTeams.filter(t => !t.pending).map(t => `
       <label class="check">
         <input type="checkbox" data-action="draft-static" data-id="${t.id}" ${d.staticIds.has(t.id) ? 'checked' : ''}>
         <b>${esc(t.name)}</b> <span class="muted small">(${t.playerIds.map(Store.playerName).map(esc).join(', ')})</span>

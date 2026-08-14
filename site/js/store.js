@@ -84,9 +84,18 @@ const Store = (() => {
 
   /* ---------- static teams ---------- */
 
-  function addStaticTeam(name, playerIds) {
-    state.staticTeams.push({ id: uid('st'), name, playerIds: [...playerIds], updatedAt: now() });
+  function addStaticTeam(name, playerIds, opts = {}) {
+    state.staticTeams.push({
+      id: uid('st'), name, playerIds: [...playerIds],
+      pending: !!opts.pending, createdBy: opts.createdBy || '',
+      updatedAt: now(),
+    });
     save();
+  }
+
+  function confirmStaticTeam(id) {
+    const t = state.staticTeams.find(x => x.id === id);
+    if (t) { t.pending = false; t.updatedAt = now(); save(); }
   }
 
   function removeStaticTeam(id) {
@@ -207,7 +216,7 @@ const Store = (() => {
   return {
     get state() { return state; },
     save, replace, addPlayers, removePlayer, playerName,
-    addStaticTeam, removeStaticTeam,
+    addStaticTeam, removeStaticTeam, confirmStaticTeam,
     tournament, removeTournament, teamOf, teamName,
     busyPlayers, leaderboard, setting, setSetting,
     exportJSON, importJSON, resetAll,

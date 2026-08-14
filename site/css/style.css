@@ -464,3 +464,7 @@ h1, h2 { color: var(--cream); }
 .chip { border-radius: 0; text-transform: uppercase; letter-spacing: .04em; }
 .btn { border-radius: 0; }
 .card, .tcard, .match, .teamcard { border-radius: 8px; }
+.qr-poster .qr-pass-line {
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: 1.05rem;
+  letter-spacing: .06em; margin-top: 10px; border-top: 3px dashed var(--ink); padding-top: 12px;
+}
