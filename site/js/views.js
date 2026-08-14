@@ -7,16 +7,19 @@ const Views = (() => {
 
   function loginGate() {
     return `
-    <section class="hero" style="max-width:440px;margin:4vh auto 0">
-      <img class="heroart" src="assets/junkyard-hero.jpg" alt="Junkyard Olympics">
-      <div class="hero-stripe"></div>
-      <h1>Junkyard <em>Olympics</em></h1>
-      <p class="muted">One login for the scoreboard and the jukebox.</p>
-      <div class="card form" style="margin-top:18px;text-align:left">
-        <label class="f">Your name<input id="a-name" maxlength="24" autocomplete="off"></label>
-        <label class="f">Party password<input id="a-pass" type="password"></label>
-        <button class="btn btn-accent btn-lg" data-action="auth-login">🏆 Let me in</button>
+    <section class="signup">
+      <div class="herowrap">
+        <img class="heroart" src="assets/junkyard-hero.jpg" alt="Junkyard Olympics">
+        <span class="hero-plate"><small>SATURDAY</small>2 PM</span>
+        <span class="hero-sticker">ADULTS ONLY</span>
       </div>
+      <div class="steprow"><span>STEP 1 OF 2</span><span>NO EMAIL. NO ACCOUNT.</span></div>
+      <h1 class="bigask">What should<br>we call you?</h1>
+      <input id="a-name" maxlength="24" autocomplete="off" placeholder="e.g. Rivet Rosie">
+      <p class="asknote">This public name appears on the scoreboard.</p>
+      <input id="a-pass" type="password" autocomplete="off" placeholder="Party password (it's on the poster)">
+      <button class="cta" data-action="auth-login"><span>Pick my events</span><span>→</span></button>
+      <div class="sitefoot">One login · scoreboard + jukebox · synced live · no telemetry</div>
     </section>`;
   }
 
@@ -340,14 +343,26 @@ const Views = (() => {
         <td class="pts">${r.points}</td><td>${r.played}</td>
       </tr>`).join('');
 
+    // "X of Y results complete" — per entered event, complete = my run there is over
+    const totalEvents = myGames.length;
+    const doneEvents = myGames.filter(g => {
+      const t = s.tournaments.find(x => x.game === g);
+      if (!t) return false;
+      if (t.status === 'complete') return true;
+      const teams = me ? myTeamIds(t, me.id) : new Set();
+      if (!teams.size) return false;
+      return !t.matches.some(mm => (teams.has(mm.teamA) || teams.has(mm.teamB)) && mm.status !== 'done');
+    }).length;
+
     return `
     <section class="pass">
       <div class="card passhead">
         <p class="eyebrow">your day in the yard</p>
         <div class="sec-head" style="margin:0">
           <h1>Hey, ${esc(Auth.name)}.</h1>
-          <div class="passcount"><b>${played}</b><small>match${played === 1 ? '' : 'es'} played</small></div>
+          <div class="passcount"><b>${doneEvents} of ${totalEvents}</b><small>results complete</small></div>
         </div>
+        <div class="passprog"><i style="width:${totalEvents ? Math.round(doneEvents / totalEvents * 100) : 0}%"></i></div>
       </div>
 
       ${call ? `
@@ -359,11 +374,11 @@ const Views = (() => {
       </a>` : `
       <div class="card quietcard">No match is calling you right now. Stay nearby — this card lights up when it's time to play.</div>`}
 
-      <h2 class="plate"><span class="pnum p-rust">01</span><span class="ptitle"><small>stay loose</small>UP NEXT</span></h2>
+      <h2 class="plate"><span class="pnum p-yellow">01</span><span class="ptitle"><small>stay loose</small><span class="ptext">Up Next</span></span></h2>
       ${myGames.length ? `<div class="passrows">${upNext}</div>`
         : `<div class="empty">You haven't entered any events yet — <a href="#/games">pick your events</a> to get on the boards. 🎟</div>`}
 
-      <h2 class="plate"><span class="pnum p-soot">02</span><span class="ptitle"><small>in the books</small>YOUR RESULTS</span></h2>
+      <h2 class="plate"><span class="pnum p-rust">02</span><span class="ptitle"><small>in the books</small><span class="ptext">Your Results</span></span></h2>
       ${results.length ? `<div class="passrows">${results.map(r => `
         <a class="passrow" href="#/m/${r.t.id}/${r.m.id}">
           <span class="passicon">${r.t.icon}</span>
@@ -373,13 +388,13 @@ const Views = (() => {
         </a>`).join('')}</div>`
         : `<div class="card quietcard">No completed results yet. Finished matches will stack up here.</div>`}
 
-      <h2 class="plate"><span class="pnum p-olive">03</span><span class="ptitle"><small>tournament of tournaments</small>CHAMPIONSHIP STANDINGS</span></h2>
+      <h2 class="plate"><span class="pnum p-steel">03</span><span class="ptitle"><small>tournament of tournaments</small><span class="ptext">Championship Standings</span></span></h2>
       ${lb.length ? `<div class="tablewrap"><table class="lb">
           <thead><tr><th></th><th>Player</th><th>Points</th><th>Played</th></tr></thead>
           <tbody>${lbRows}</tbody></table></div>`
         : `<div class="card quietcard">Standings appear once the first tournament finishes.</div>`}
 
-      <h2 class="plate"><span class="pnum p-rust">04</span><span class="ptitle"><small>on the board</small>ALL TOURNAMENTS</span></h2>
+      <h2 class="plate"><span class="pnum p-soot">04</span><span class="ptitle"><small>on the board</small><span class="ptext">All Tournaments</span></span></h2>
       ${s.tournaments.length ? `<div class="passrows">${s.tournaments.map(t => `
         <a class="passrow" href="#/t/${t.id}">
           <span class="passicon">${t.icon}</span>
@@ -392,6 +407,13 @@ const Views = (() => {
         <a href="#/games" style="color:var(--accent)">🎟 change my events</a> ·
         <a href="#/players" style="color:var(--accent)">🤝 form a team</a> ·
         <a href="https://music.junkyardolympics.com" style="color:var(--accent)">🎶 jukebox</a></p>
+
+      <div class="leaving">
+        <h3>Leaving this phone?</h3>
+        <p>Sign out only if the next person shouldn't open your competitor pass.</p>
+        <a href="#" data-action="auth-logout">Sign out of this device</a>
+      </div>
+      <div class="sitefoot">Your pass stays on this device · one login for scoreboard + jukebox</div>
     </section>`;
   }
 

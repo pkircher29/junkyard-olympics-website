@@ -611,3 +611,118 @@ input, select, textarea { background: #fffaef; }
 .passrow .passinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .passrow .passinfo b { letter-spacing: .03em; }
 .passrow .passinfo small { font-family: 'Courier New', monospace; color: var(--muted); font-size: .76rem; }
+
+/* ==================== FIDELITY PASS: Chris's exact type + components ==================== */
+:root { --display: Impact, 'Arial Narrow Bold', 'Arial Narrow', 'Franklin Gothic Medium', 'Outfit', sans-serif; }
+body { font-family: Arial, Helvetica, sans-serif; }
+h1, h2, h3, .brand, .round h4, .vs, .wintag, .pnum, .ptitle, .tname, .gbtn {
+  font-family: var(--display); font-weight: 400; letter-spacing: .015em;
+}
+h1, .passhead h1 { font-style: italic; }
+.brand { font-style: italic; letter-spacing: .02em; }
+.brand em { -webkit-text-stroke: 0; }
+
+/* masthead LOCAL LIVE bug (replaces the bare sync dot) */
+.sync-dot {
+  width: auto; height: auto; border-radius: 0;
+  background: transparent !important; box-shadow: none !important; animation: none !important;
+  border: 1px solid #f1e3c1; padding: 4px 9px;
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .6rem;
+  letter-spacing: .12em; color: #f1e3c1; display: inline-flex; align-items: center; gap: 6px;
+}
+.sync-dot::before { content: '●'; color: #8a8a8a; }
+.sync-dot::after { content: 'LOCAL LIVE'; }
+.sync-live::before { color: #58e08a; }
+.sync-error::before { color: #ff5a4d; }
+.sync-connecting::before { color: #f5a623; }
+
+/* ---------- signup page (Chris's step 1) ---------- */
+.signup { max-width: 460px; margin: 0 auto; padding-top: 8px; }
+.herowrap { position: relative; }
+.herowrap .heroart { margin-bottom: 0; max-width: 100%; }
+.hero-plate {
+  position: absolute; top: 14px; right: 14px; text-align: center;
+  background: var(--accent); color: #171814; padding: 8px 12px;
+  font-family: var(--display); font-size: 1.05rem; line-height: 1.05;
+  border: 2px solid var(--ink); box-shadow: 3px 3px 0 rgba(23, 24, 20, .8);
+}
+.hero-plate small { display: block; font-family: 'Courier New', monospace; font-weight: 700; font-size: .58rem; letter-spacing: .1em; }
+.hero-sticker {
+  position: absolute; bottom: 14px; right: 14px;
+  background: #171814; color: #f1e3c1; padding: 5px 10px;
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .66rem; letter-spacing: .12em;
+  border: 1.5px solid #000; transform: rotate(-2deg);
+}
+.steprow {
+  display: flex; justify-content: space-between; margin: 18px 2px 8px;
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .66rem;
+  letter-spacing: .12em; color: var(--accent2); text-transform: uppercase;
+}
+.bigask {
+  font-family: var(--display); font-style: normal; font-size: clamp(2.2rem, 9vw, 3rem);
+  line-height: .95; letter-spacing: .01em; text-transform: uppercase; margin: 0 0 14px;
+}
+.signup input {
+  width: 100%; font-size: 1.05rem; padding: 14px 16px;
+  border: 2.5px solid var(--ink); border-radius: 6px; margin-bottom: 4px;
+}
+.asknote { font-weight: 700; font-size: .9rem; margin: 6px 0 12px; }
+.cta {
+  display: flex; justify-content: space-between; align-items: center; width: 100%;
+  background: var(--accent); color: #171814; cursor: pointer;
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .95rem;
+  letter-spacing: .1em; text-transform: uppercase;
+  border: 2.5px solid var(--ink); padding: 15px 18px; margin-top: 10px;
+  box-shadow: 4px 4px 0 rgba(23, 24, 20, .8);
+}
+.cta:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(23, 24, 20, .8); }
+
+.sitefoot {
+  margin-top: 34px; padding: 12px; text-align: center;
+  background: #171814; color: #8f8672;
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .62rem;
+  letter-spacing: .14em; text-transform: uppercase;
+  border: 2px solid #000;
+}
+
+/* ---------- pass fidelity ---------- */
+.passhead { position: relative; overflow: hidden; }
+.passhead::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 7px;
+  background: var(--hazard);
+}
+.passhead { padding-top: 24px; }
+.passcount b { font-size: 1.9rem; }
+.passprog { height: 10px; border: 2px solid var(--ink); background: #fffaef; margin-top: 12px; }
+.passprog i { display: block; height: 100%; background: var(--accent); }
+
+.pnum { font-size: 1.35rem; }
+.p-yellow { background: #f5a623; color: #171814; }
+.p-steel { background: #88908a; color: #171814; }
+.ptitle { line-height: 1; }
+.ptitle b, .ptitle .ptext { font-family: var(--display); font-size: 1.75rem; text-transform: uppercase; }
+
+/* raffle-ticket rows: perforated stub on the left, outlined chip on the right */
+.passrow {
+  border-left: 2px solid var(--ink); border-radius: 6px; position: relative; padding-left: 30px;
+}
+.passrow::before {
+  content: ''; position: absolute; left: 8px; top: 8px; bottom: 8px; width: 10px;
+  background: repeating-linear-gradient(180deg, var(--accent) 0 7px, transparent 7px 12px);
+  border-left: 2px dashed var(--ink); border-right: 2px dashed var(--ink);
+}
+.passrow .passinfo b { font-family: var(--display); font-size: 1.15rem; letter-spacing: .02em; }
+.passrow .passinfo small { font-family: Arial, sans-serif; font-weight: 700; color: #4a4335; font-size: .78rem; }
+.passrow .chip {
+  background: transparent; border: 1.5px solid var(--ink); color: var(--ink);
+  font-family: 'Courier New', monospace;
+}
+.passrow .chip-live { border-color: var(--accent2); color: var(--accent2); }
+.passrow .chip-done { border-color: var(--ok); color: var(--ok); }
+
+.quietcard { background: #e3dcc8; border-style: solid; border-color: #b6ad94; color: #4a4335; font-weight: 600; }
+
+.leaving { margin-top: 30px; border-top: 3px dashed var(--ink); padding-top: 16px; }
+.leaving h3 { font-family: var(--display); font-size: 1.3rem; text-transform: uppercase; }
+.leaving p { font-weight: 700; font-size: .88rem; margin: 6px 0 12px; }
+.leaving a { text-decoration: underline; font-weight: 700; color: var(--accent2); }
