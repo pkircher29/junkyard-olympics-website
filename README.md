@@ -8,15 +8,23 @@ builds by **Paul** (pkircher29) and **Chris** (crose0122).
 ## What lives where
 
 ```
-site/         Paul's cloud apps — LIVE in production
-              ├─ junkyardolympics.com          bracket scoreboard (Cloudflare Worker + D1)
-              └─ music.junkyardolympics.com    Junkyard Jukebox (Spotify party queue)
+junkyardolympics.com            CHRIS'S APP — the main site. A Cloudflare
+                                Worker proxies every request over a Tailscale
+                                bridge (AutoKJ VPS -> RecRoomRig:8790) to the
+                                lan-server below. Styled fallback page when
+                                the control tower is unreachable.
 
-lan-server/   Chris's LAN control tower — Node 22 + Express + SQLite
-              cannon scoring engine, TV broadcast mode, Flair, stations,
-              print packet, organizer consoles (176/181 tests passing)
+bracket.junkyardolympics.com    Paul's bracket scoreboard + medal table
+                                (static from site/, sync API on D1)
 
-docs/         COMPARISON.md — the head-to-head analysis and merge decision record
+music.junkyardolympics.com      Junkyard Jukebox (Spotify party queue)
+
+site/         Paul's cloud apps (scoreboard + jukebox + workers)
+lan-server/   Chris's control tower — Node 22 + Express + SQLite: signup,
+              competitor pass, cannon engine, TV broadcast, Flair, stations,
+              print packet, organizer consoles (176/181 tests passing).
+              RUN WITH HOST=0.0.0.0 so the public relay can reach it.
+docs/         COMPARISON.md — head-to-head analysis and merge decision record
 ```
 
 ## Running each part
