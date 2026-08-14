@@ -726,3 +726,13 @@ h1, .passhead h1 { font-style: italic; }
 .leaving h3 { font-family: var(--display); font-size: 1.3rem; text-transform: uppercase; }
 .leaving p { font-weight: 700; font-size: .88rem; margin: 6px 0 12px; }
 .leaving a { text-decoration: underline; font-weight: 700; color: var(--accent2); }
+
+/* ==== status light: plain green/red dot in the corner (no LOCAL LIVE text) ==== */
+.sync-dot {
+  border: 0 !important; padding: 0 !important;
+  width: 12px !important; height: 12px !important; border-radius: 50% !important;
+  background: #c0392b !important;
+}
+.sync-dot::before, .sync-dot::after { content: none !important; }
+.sync-live { background: #2ecc5e !important; box-shadow: 0 0 8px rgba(46, 204, 94, .7) !important; }
+.sync-error, .sync-off, .sync-connecting { background: #c0392b !important; box-shadow: none !important; }
