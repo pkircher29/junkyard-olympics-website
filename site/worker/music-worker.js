@@ -276,18 +276,21 @@ async function api(req, env, url, p) {
     const isGuestPw = (b.password || '') === c.shared_password;
     if (!isHostPw && !isGuestPw) return json({ error: 'wrong party password' }, 403);
 
-    const token = crypto.randomUUID();
+    // Re-logins REUSE the stored token: rotating it silently broke every other
+    // device the same person was already logged in on (their writes 401'd).
     const existing = await env.DB.prepare('SELECT * FROM music_users WHERE name = ?').bind(name).first();
-    let user;
+    let user, token;
 
     if (isHostPw) {
       if (!hostNames.includes(name.toLowerCase())) {
         return json({ error: 'the host password only works for host accounts' }, 403);
       }
       if (existing) {
+        token = existing.token || crypto.randomUUID();
         await env.DB.prepare("UPDATE music_users SET token = ?, role = 'host' WHERE id = ?").bind(token, existing.id).run();
         user = { ...existing, token, role: 'host' };
       } else {
+        token = crypto.randomUUID();
         user = { id: crypto.randomUUID(), name, token, created: iso(), role: 'host' };
         await env.DB.prepare("INSERT INTO music_users (id, name, token, created, role) VALUES (?, ?, ?, ?, 'host')")
           .bind(user.id, name, token, user.created).run();
@@ -297,9 +300,11 @@ async function api(req, env, url, p) {
         return json({ error: 'that name is a host account — use the host password' }, 403);
       }
       if (existing) {
+        token = existing.token || crypto.randomUUID();
         await env.DB.prepare('UPDATE music_users SET token = ? WHERE id = ?').bind(token, existing.id).run();
         user = { ...existing, token };
       } else {
+        token = crypto.randomUUID();
         user = { id: crypto.randomUUID(), name, token, created: iso(), role: 'guest' };
         await env.DB.prepare('INSERT INTO music_users (id, name, token, created) VALUES (?, ?, ?, ?)')
           .bind(user.id, name, token, user.created).run();
