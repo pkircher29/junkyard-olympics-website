@@ -97,7 +97,7 @@ function trackMeta(t) {
 function vLogin() {
   return `
   <div class="login">
-    <img class="heroart" src="https://junkyardolympics.com/assets/junkyard-hero.jpg" alt="">
+    <img class="heroart" src="https://bracket.junkyardolympics.com/assets/junkyard-hero.jpg" alt="">
     <div class="hero-stripe"></div>
     <h1>Junkyard <em>Jukebox</em></h1>
     <p class="muted">You pick it, we blast it. Fair rotation, no hogging the aux.</p>
@@ -112,7 +112,7 @@ function vLogin() {
 function vJoinLink(code) {
   return `
   <div class="login">
-    <img class="heroart" src="https://junkyardolympics.com/assets/junkyard-hero.jpg" alt="">
+    <img class="heroart" src="https://bracket.junkyardolympics.com/assets/junkyard-hero.jpg" alt="">
     <div class="hero-stripe"></div>
     <h1>Junkyard <em>Jukebox</em></h1>
     <p class="muted">You scanned the poster — what do we call you?</p>

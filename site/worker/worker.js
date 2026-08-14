@@ -80,7 +80,18 @@ export default {
         if (upstream.status >= 520 && upstream.status <= 530) return hqDownPage();
         const headers = new Headers(upstream.headers);
         if (url.pathname.startsWith('/api/')) headers.set('Access-Control-Allow-Origin', '*');
-        return new Response(upstream.body, { status: upstream.status, headers });
+        const out = new Response(upstream.body, { status: upstream.status, headers });
+        // yard bar: link the jukebox + bracket scoreboard from every HQ page
+        if (upstream.ok && (headers.get('content-type') || '').includes('text/html')) {
+          const bar = `<div style="position:fixed;bottom:10px;right:10px;z-index:9999;display:flex;gap:8px;font-family:'Courier New',monospace">
+            <a href="https://music.junkyardolympics.com" style="background:#171814;color:#f1e3c1;border:2px solid #000;box-shadow:3px 3px 0 rgba(0,0,0,.5);padding:8px 12px;font-weight:700;font-size:12px;letter-spacing:.06em;text-decoration:none">🎶 JUKEBOX</a>
+            <a href="https://bracket.junkyardolympics.com" style="background:#171814;color:#f1e3c1;border:2px solid #000;box-shadow:3px 3px 0 rgba(0,0,0,.5);padding:8px 12px;font-weight:700;font-size:12px;letter-spacing:.06em;text-decoration:none">🏆 BRACKETS</a>
+          </div>`;
+          return new HTMLRewriter()
+            .on('body', { element(el) { el.append(bar, { html: true }); } })
+            .transform(out);
+        }
+        return out;
       } catch (e) {
         return hqDownPage();
       }
