@@ -468,3 +468,89 @@ h1, h2 { color: var(--cream); }
   font-family: 'Courier New', monospace; font-weight: 700; font-size: 1.05rem;
   letter-spacing: .06em; margin-top: 10px; border-top: 3px dashed var(--ink); padding-top: 12px;
 }
+
+/* ==================== PAPER EDITION ====================
+   Chris's competitor-pass look: dirty-cream paper, ink text,
+   ticket cards, flame-orange accents, dark masthead. */
+:root {
+  --bg: #f1e3c1;
+  --bg2: #e7d7b0;
+  --card: #faf3e0;
+  --card2: #efe4c8;
+  --line: #171814;
+  --text: #171814;
+  --muted: #6c6350;
+  --accent: #e65f1a;
+  --accent2: #a73520;
+  --grad: linear-gradient(135deg, #a73520, #e65f1a);
+  --hazard: repeating-linear-gradient(-45deg, #f5a623 0 12px, #171814 12px 24px);
+  --live: #a73520;
+  --ok: #667342;
+  --gold: #8a6100;
+  --ink: #171814;
+  --cream: #f1e3c1;
+  --olive: #667342;
+}
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(rgba(23, 24, 20, .07) 1px, transparent 1.4px);
+  background-size: 12px 12px;
+  color: var(--text);
+}
+h1, h2 { color: var(--ink); }
+main h2 { text-transform: uppercase; border-bottom: 3px solid var(--ink); padding-bottom: 6px; }
+.hero h1 em, .brand em { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* masthead stays soot-dark like the competitor pass */
+.topbar { background: #171814; border-bottom: 2px solid #000; backdrop-filter: none; }
+.topbar .brand, .topbar .brand span { color: #f1e3c1; }
+.topnav a { color: #b9ad92; }
+.topnav a:hover, .topnav a.on { color: var(--ink); background: var(--cream); }
+
+/* buttons get full ink outlines on paper */
+.btn { border: 2px solid var(--ink); box-shadow: 2px 2px 0 rgba(23, 24, 20, .8); }
+.btn:hover { transform: none; filter: none; background: #fff8ea; }
+.btn-accent:hover { background: var(--grad); filter: brightness(1.06); }
+.btn-ghost { background: transparent; }
+.btn-danger { border-color: var(--accent2); color: var(--accent2); }
+.btn-danger:hover { background: rgba(167, 53, 32, .1); }
+.btn-live { background: var(--live); color: #f1e3c1; }
+.topnav a.btn, .btn-accent { color: #171814; }
+
+/* chips re-inked for light paper */
+.chip-live { background: rgba(167, 53, 32, .14); color: #a73520; }
+.chip-active { background: rgba(43, 93, 115, .14); color: #2b5d73; }
+.chip-done { background: rgba(102, 115, 66, .18); color: #4d5731; }
+.chip-static { background: rgba(245, 166, 35, .2); color: #7a5600; }
+.chip-random { background: rgba(109, 75, 143, .14); color: #5d3f7d; }
+.chip-rule { background: var(--card2); color: #4a4335; }
+
+.tcard:hover { border-color: var(--ink); box-shadow: 6px 6px 0 rgba(23, 24, 20, .8); }
+.card, .tcard, .match, .qitem, .teamcard, .stat {
+  box-shadow: 4px 4px 0 rgba(23, 24, 20, .8);
+}
+.heroart, .hero-banner .heroart { box-shadow: 6px 6px 0 rgba(23, 24, 20, .8); }
+
+.lb tbody tr { border-bottom: 1px solid rgba(23, 24, 20, .18); }
+.podium-1 { background: rgba(245, 166, 35, .13); }
+.podium-2 { background: rgba(136, 144, 138, .12); }
+.podium-3 { background: rgba(224, 146, 90, .14); }
+
+input, select, textarea { background: #fffaef; }
+.pchip .x:hover { color: #a73520; background: rgba(167, 53, 32, .12); }
+.gbtn.on { border-color: var(--accent); background: rgba(230, 95, 26, .1); }
+
+.mrow + .mrow, .mact { border-top: 1px solid rgba(23, 24, 20, .25); }
+.mrow.won { background: rgba(102, 115, 66, .16); }
+.qlive { border-color: var(--accent2); }
+.match.live { border-color: var(--accent2); box-shadow: 4px 4px 0 rgba(167, 53, 32, .5); }
+
+.toast { box-shadow: 4px 4px 0 rgba(23, 24, 20, .5); border-width: 2px; }
+.toast-ok { border-color: var(--ok); }
+.toast-warn { border-color: #b07c12; }
+.toast-error { border-color: var(--accent2); }
+
+.spanel.at-target { border-color: #b07c12; box-shadow: 4px 4px 0 rgba(176, 124, 18, .4); }
+.spanel.winner { border-color: var(--ok); box-shadow: 4px 4px 0 rgba(102, 115, 66, .45); }
+.wintag { color: var(--ok); }
+.brand small { color: var(--accent); }

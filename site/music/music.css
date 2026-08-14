@@ -183,3 +183,43 @@ h1, h2 { color: var(--cream); }
 .chip, .muted.small, .small, .tmeta { font-family: 'Courier New', monospace; }
 .chip { border-radius: 0; text-transform: uppercase; letter-spacing: .04em; }
 .btn { border-radius: 0; }
+
+/* ==================== PAPER EDITION (matches the scoreboard) ==================== */
+:root {
+  --bg: #f1e3c1; --bg2: #e7d7b0; --card: #faf3e0; --card2: #efe4c8;
+  --line: #171814; --text: #171814; --muted: #6c6350;
+  --accent: #e65f1a; --accent2: #a73520;
+  --grad: linear-gradient(135deg, #a73520, #e65f1a);
+  --hazard: repeating-linear-gradient(-45deg, #f5a623 0 12px, #171814 12px 24px);
+  --live: #a73520; --ok: #667342; --gold: #8a6100;
+  --ink: #171814; --cream: #f1e3c1; --olive: #667342;
+}
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(rgba(23, 24, 20, .07) 1px, transparent 1.4px);
+  background-size: 12px 12px;
+  color: var(--text);
+}
+h1, h2 { color: var(--ink); }
+main h2 { text-transform: uppercase; border-bottom: 3px solid var(--ink); padding-bottom: 6px; }
+.topbar { background: #171814; border-bottom: 2px solid #000; backdrop-filter: none; }
+.topbar .brand, .topbar .brand span { color: #f1e3c1; }
+#nav a { color: #b9ad92; }
+#nav a:hover, #nav a.on { color: var(--ink); background: var(--cream); }
+.btn { border: 2px solid var(--ink); box-shadow: 2px 2px 0 rgba(23, 24, 20, .8); }
+.btn:hover { transform: none; filter: none; background: #fff8ea; }
+.btn-accent { color: #171814; }
+.btn-accent:hover { background: var(--grad); filter: brightness(1.06); }
+.btn-ghost { background: transparent; }
+.chip-live { background: rgba(167, 53, 32, .14); color: #a73520; }
+.chip-auto { background: rgba(43, 93, 115, .14); color: #2b5d73; }
+.chip-ban { background: rgba(167, 53, 32, .14); color: #a73520; }
+input { background: #fffaef; }
+.trackrow.mine { border-color: var(--accent); box-shadow: 4px 4px 0 rgba(230, 95, 26, .45); }
+.card, .trackrow, .albumcard, .banbox { box-shadow: 4px 4px 0 rgba(23, 24, 20, .8); }
+.banbox { border: 2px solid var(--accent2); background: rgba(167, 53, 32, .08); }
+.heroart { box-shadow: 6px 6px 0 rgba(23, 24, 20, .8); }
+.pchip b { color: #7a5600; }
+.mlink { text-decoration-color: rgba(167, 53, 32, .6); }
+.mlink:hover { color: var(--accent2); }
+.brand small { color: var(--accent); }
