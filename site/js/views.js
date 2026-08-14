@@ -139,11 +139,12 @@ const Views = (() => {
     <section>
       <div class="sec-head">
         <h2>Tournaments</h2>
-        <a class="btn btn-accent" href="#/new">+ New Tournament</a>
+        ${Auth.isHost ? '<a class="btn btn-accent" href="#/new">+ New Tournament</a>'
+          : '<a class="btn btn-ghost btn-sm" href="#/players">🤝 Form your team</a>'}
       </div>
       ${s.tournaments.length
         ? `<div class="tgrid">${cards}</div>`
-        : `<div class="empty">No events yet. Add some <a href="#/players">athletes</a>, then fire up your first bracket. 🌽🐴🔩</div>`}
+        : `<div class="empty">No events yet. Add some <a href="#/players">athletes</a>${Auth.isHost ? ', then fire up your first bracket. 🌽🐴🔩' : ' and form your team — the hosts start the brackets. 🌽🐴🔩'}</div>`}
     </section>
 
     <section>
@@ -173,11 +174,98 @@ const Views = (() => {
       </div>
     </section>
 
+    ${hqCard()}
+
     <section class="datatools">
       <button class="btn btn-ghost btn-sm" data-action="export-data">⬇ Export backup</button>
       ${Auth.isHost ? `
       <label class="btn btn-ghost btn-sm">⬆ Import backup<input type="file" id="import-file" accept=".json" hidden></label>
       <button class="btn btn-danger btn-sm" data-action="reset-all">Reset everything</button>` : ''}
+    </section>`;
+  }
+
+  /* =============== Event HQ bridge (Chris's LAN control tower) =============== */
+
+  function hqUrl() { return (Store.setting('hqUrl') || '').replace(/\/+$/, ''); }
+
+  function hqCard() {
+    const hq = hqUrl();
+    if (!hq) {
+      return Auth.isHost ? `
+      <section>
+        <div class="sec-head"><h2>🎪 Event HQ</h2></div>
+        <div class="card"><p class="muted small">Chris's control tower (TV broadcast · cannon scoring · Flair) isn't
+          linked yet. <a href="#/hq" style="color:var(--accent)">Connect it →</a></p></div>
+      </section>` : '';
+    }
+    return `
+    <section>
+      <div class="sec-head"><h2>🎪 Event HQ <span class="muted small">— Chris's control tower</span></h2>
+        ${Auth.isHost ? '<a class="btn btn-ghost btn-sm" href="#/hq">⚙ Configure</a>' : ''}</div>
+      <div class="card">
+        <div class="chiprow" style="gap:10px;flex-wrap:wrap">
+          <a class="btn btn-accent" href="${esc(hq)}/tv.html" target="_blank" rel="noopener">📺 TV Broadcast</a>
+          <a class="btn btn-ghost" href="${esc(hq)}/cannon.html" target="_blank" rel="noopener">💥 Cannon Console</a>
+          <a class="btn btn-ghost" href="${esc(hq)}/participant.html" target="_blank" rel="noopener">🧑‍🔧 My Yard</a>
+          <a class="btn btn-ghost" href="${esc(hq)}/index.html" target="_blank" rel="noopener">📝 HQ Signup</a>
+          ${Auth.isHost ? `<a class="btn btn-ghost" href="${esc(hq)}/organizer.html" target="_blank" rel="noopener">🎛 Organizer</a>` : ''}
+        </div>
+        <div id="hq-standings" style="margin-top:10px"><p class="muted small">Reaching HQ…</p></div>
+        <p class="muted small">Works when this device can reach the control tower — party Wi-Fi, Tailscale, or a Tailscale Funnel URL.</p>
+      </div>
+    </section>`;
+  }
+
+  async function loadHqStandings() {
+    const box = $('#hq-standings');
+    const hq = hqUrl();
+    if (!box || !hq) return;
+    try {
+      const ctl = new AbortController();
+      setTimeout(() => ctl.abort(), 5000);
+      const [champ, flair] = await Promise.all([
+        fetch(hq + '/api/standings/championship', { signal: ctl.signal }).then(r => r.json()),
+        fetch(hq + '/api/standings/flair', { signal: ctl.signal }).then(r => r.json()),
+      ]);
+      const rows = (champ.standings || []).slice(0, 8).map((r, i) => `
+        <tr><td class="rank">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</td>
+        <td>${esc(r.displayName)}</td><td class="pts">${r.total}</td><td>${r.eligible ? '✅' : '—'}</td></tr>`).join('');
+      const fl = (flair.standings || []).slice(0, 6).map(r =>
+        `<span class="pchip">${esc(r.displayName)} <b>${r.total}</b></span>`).join('');
+      box.innerHTML = `
+        ${rows ? `<h3 class="brh">🏆 HQ Championship <span class="muted small">(Cannon + best 3 field events)</span></h3>
+          <div class="tablewrap"><table class="lb">
+            <thead><tr><th></th><th>Player</th><th>Points</th><th>Podium-eligible</th></tr></thead>
+            <tbody>${rows}</tbody></table></div>` : ''}
+        ${fl ? `<h3 class="brh">🎭 Flair standings</h3><div class="statchips">${fl}</div>` : ''}
+        ${!rows && !fl ? '<p class="muted small">HQ is reachable — no standings on the board yet.</p>' : ''}`;
+    } catch {
+      box.innerHTML = '<p class="muted small">📡 HQ not reachable from this device right now — links above still work on the party network.</p>';
+    }
+  }
+
+  function hqPage() {
+    if (!Auth.isHost) return `<section><div class="empty">🎛 Hosts only.</div></section>`;
+    const cur = Store.setting('hqUrl') || '';
+    return `
+    <section>
+      <a class="backlink" href="#/">← Overview</a>
+      <h2>🎪 Connect Event HQ</h2>
+      <div class="card form">
+        <p class="muted small">Point the site at Chris's LAN control tower (the Node server on RecRoomRig,
+          port 8790). The link syncs to every device in the room. Use whichever URL guests can reach:</p>
+        <p class="muted small">
+          · Same Wi-Fi: <b>http://&lt;recroomrig-lan-ip&gt;:8790</b><br>
+          · Tailscale (device on the tailnet): <b>http://recroomrig:8790</b><br>
+          · From anywhere: run <b>tailscale funnel 8790</b> on RecRoomRig and paste the
+          <b>https://…ts.net</b> URL it prints — guests' phones reach it over the internet.</p>
+        <div class="addrow">
+          <input id="hq-url" value="${esc(cur)}" placeholder="http://192.168.1.x:8790 or https://recroomrig.tailXXXX.ts.net" autocomplete="off">
+          <button class="btn btn-accent" data-action="hq-save">Save</button>
+        </div>
+        <p class="muted small">Leave blank and Save to disconnect. Standings panels need the control tower
+          run from the merged repo (it adds read-only CORS); the page links work either way.</p>
+      </div>
     </section>`;
   }
 
@@ -218,14 +306,17 @@ const Views = (() => {
     </section>
 
     <section>
-      <div class="sec-head"><h2>Static Teams</h2>
-        <span class="muted small">Fixed rosters available in every tournament</span></div>
+      <div class="sec-head"><h2>${Auth.isHost ? 'Static Teams' : 'Form Your Team'}</h2>
+        <span class="muted small">${Auth.isHost
+          ? 'Fixed rosters available in every tournament'
+          : 'Pick yourself + a partner (exactly 2) — your team rides into every tournament'}</span></div>
       <div class="card">
         <div class="addrow">
-          <input id="team-name" placeholder="Team name (e.g. The Ringers)">
+          <input id="team-name" placeholder="Team name (e.g. The Ringers)" maxlength="30">
           <button class="btn btn-accent" data-action="create-team">Create team</button>
         </div>
         <div class="checkgrid">${boxes || '<span class="muted">Add players first.</span>'}</div>
+        <p class="muted small">Keep the name family-viewable — the censor bleeps anything spicy. 🧼</p>
       </div>
       <div class="teamgrid">${teamCards}</div>
     </section>`;
@@ -571,6 +662,6 @@ const Views = (() => {
   }
 
   return { overview, players, newTournament, tournamentPage, scorePage, loginGate,
-           joinGate, qrPage,
+           joinGate, qrPage, hqPage, loadHqStandings,
            getDraft, resetDraft, shuffleDraftTeams, draftTeamCount };
 })();

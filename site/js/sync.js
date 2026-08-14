@@ -70,6 +70,7 @@ const Sync = (() => {
       staticTeams: mergeColl(local.staticTeams || [], remote.staticTeams || [], deleted.staticTeams),
       tournaments: mergeColl(local.tournaments || [], remote.tournaments || [],
         deleted.tournaments, (l, r) => Bracket.mergeTournaments(l, r)),
+      settings: newer(local.settings, remote.settings) ? (local.settings || {}) : (remote.settings || {}),
       deleted,
     };
   }

@@ -165,3 +165,21 @@ h1, h2 { color: var(--cream); }
   border: 3px solid var(--ink); border-radius: var(--radius);
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .55);
 }
+
+/* ==== Chris's surface system: masthead + courier metadata (match bracket app) ==== */
+.brand span { display: inline-flex; flex-direction: column; line-height: 1.05; }
+.brand small {
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .58rem;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--accent2);
+}
+.topnav a, #nav a {
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .82rem;
+  text-transform: uppercase; letter-spacing: .05em; border-radius: 0;
+}
+#nav a.on, #nav a:hover {
+  background: var(--cream); color: var(--ink);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, .55);
+}
+.chip, .muted.small, .small, .tmeta { font-family: 'Courier New', monospace; }
+.chip { border-radius: 0; text-transform: uppercase; letter-spacing: .04em; }
+.btn { border-radius: 0; }

@@ -29,6 +29,49 @@ function chunk(arr, size) {
   return out;
 }
 
+/* ---------- name censor ----------
+   Guests name their own teams, so names get an obvious bleep: matched words
+   keep their first letter and the rest becomes ***. Leetspeak (5h1t) and
+   squeezed spellings (s-h-i-t) are normalized before matching. Two tiers:
+   substring-safe words match anywhere; short words that hide inside innocent
+   ones (class, Dickens, Scunthorpe) require word boundaries. */
+
+const CENSOR_ANYWHERE = ['fuck', 'shit', 'cunt', 'bitch', 'faggot', 'nigger', 'nigga',
+  'wetback', 'kike', 'retard', 'tranny', 'whore', 'asshole', 'jackass', 'dumbass'];
+const CENSOR_BOUNDED = ['ass', 'dick', 'cock', 'pussy', 'twat', 'tit', 'tits', 'cum',
+  'fag', 'coon', 'spic', 'chink', 'slut', 'rape', 'rapist', 'nazi', 'penis', 'vagina',
+  'boner', 'jizz', 'dildo', 'hoe', 'douche'];
+const LEET = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b', '@': 'a', '$': 's', '!': 'i', '+': 't' };
+
+function censorName(raw) {
+  const original = [...String(raw ?? '')];
+  // norm: 1:1 char map — lowercase + leetspeak folded, everything else kept
+  const norm = original.map(c => LEET[c] || c.toLowerCase());
+  const bleep = (from, to) => {         // keep first letter, star the rest
+    let first = true;
+    for (let i = from; i <= to; i++) {
+      if (!/[a-z]/.test(norm[i])) continue;
+      if (first) { first = false; continue; }
+      original[i] = '*';
+    }
+  };
+  // stripped stream (letters only) with a map back to original indexes
+  const stripped = [], at = [];
+  norm.forEach((c, i) => { if (/[a-z]/.test(c)) { stripped.push(c); at.push(i); } });
+  const s = stripped.join('');
+  for (const w of CENSOR_ANYWHERE) {
+    let k = -1;
+    while ((k = s.indexOf(w, k + 1)) !== -1) bleep(at[k], at[k + w.length - 1]);
+  }
+  const n = norm.join('');
+  for (const w of CENSOR_BOUNDED) {
+    const re = new RegExp(`(?<![a-z])${w}(?![a-z])`, 'g');
+    let m;
+    while ((m = re.exec(n)) !== null) bleep(m.index, m.index + w.length - 1);
+  }
+  return original.join('');
+}
+
 /* ---------- game presets ---------- */
 
 const GAME_PRESETS = [

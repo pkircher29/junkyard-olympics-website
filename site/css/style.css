@@ -439,3 +439,28 @@ h1, h2 { color: var(--cream); }
   .qr-poster, .qr-poster * { visibility: visible; }
   .qr-poster { position: absolute; inset: 0; margin: 0; box-shadow: none; }
 }
+
+/* ==== Chris's surface system: masthead + ticket tabs + courier metadata ==== */
+.brand span { display: inline-flex; flex-direction: column; line-height: 1.05; }
+.brand small {
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .58rem;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--accent2);
+}
+.topnav a {
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .82rem;
+  text-transform: uppercase; letter-spacing: .05em;
+  border: 2px solid transparent; border-radius: 0; padding: 7px 11px;
+}
+.topnav a.on, .topnav a:hover {
+  background: var(--cream); color: var(--ink);
+  border-color: var(--ink); box-shadow: 2px 2px 0 rgba(0, 0, 0, .55);
+}
+.topnav a.btn { border-radius: 0; }
+.chip, .muted.small, .small, .tmeta, .f label, label.f {
+  font-family: 'Courier New', monospace;
+}
+.f { text-transform: uppercase; letter-spacing: .05em; font-size: .8rem; }
+.f input, .f select, .f textarea { text-transform: none; letter-spacing: normal; font-family: 'Outfit', sans-serif; }
+.chip { border-radius: 0; text-transform: uppercase; letter-spacing: .04em; }
+.btn { border-radius: 0; }
+.card, .tcard, .match, .teamcard { border-radius: 8px; }

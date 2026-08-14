@@ -8,6 +8,7 @@ const Store = (() => {
 
   function blank() {
     return { players: [], staticTeams: [], tournaments: [],
+             settings: {},
              deleted: { players: {}, staticTeams: {}, tournaments: {} } };
   }
 
@@ -15,6 +16,7 @@ const Store = (() => {
     try {
       const s = JSON.parse(localStorage.getItem(KEY));
       if (s && !s.deleted) s.deleted = { players: {}, staticTeams: {}, tournaments: {} };
+      if (s && !s.settings) s.settings = {};
       return s;
     }
     catch { return null; }
@@ -162,6 +164,19 @@ const Store = (() => {
     return [...rows.values()].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
   }
 
+  /* ---------- shared settings (synced last-write-wins) ---------- */
+
+  function setting(key) {
+    return (state.settings || {})[key];
+  }
+
+  function setSetting(key, value) {
+    if (!state.settings) state.settings = {};
+    state.settings[key] = value;
+    state.settings.updatedAt = now();
+    save();
+  }
+
   /* ---------- import / export ---------- */
 
   function exportJSON() {
@@ -194,7 +209,7 @@ const Store = (() => {
     save, replace, addPlayers, removePlayer, playerName,
     addStaticTeam, removeStaticTeam,
     tournament, removeTournament, teamOf, teamName,
-    busyPlayers, leaderboard,
+    busyPlayers, leaderboard, setting, setSetting,
     exportJSON, importJSON, resetAll,
   };
 })();

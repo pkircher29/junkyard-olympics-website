@@ -67,6 +67,16 @@ export function createApp({
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32kb" }));
+  // Read-only CORS: lets the cloud scoreboard (junkyardolympics.com) pull
+  // public standings from this control tower across origins. Mutations stay
+  // same-origin only.
+  app.use((req, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      if (req.method === "OPTIONS" && req.path.startsWith("/api/")) return res.status(204).end();
+    }
+    next();
+  });
   let mutationRouteTail: Promise<void> = Promise.resolve();
   app.use((req, res, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();

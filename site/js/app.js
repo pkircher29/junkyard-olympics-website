@@ -12,6 +12,7 @@
     if (parts[0] === 'new') return { name: 'new' };
     if (parts[0] === 'join') return { name: 'join', code: parts[1] || '' };
     if (parts[0] === 'qr') return { name: 'qr' };
+    if (parts[0] === 'hq') return { name: 'hq' };
     if (parts[0] === 't' && parts[1]) return { name: 'tournament', tid: parts[1] };
     if (parts[0] === 'm' && parts[1] && parts[2]) return { name: 'match', tid: parts[1], mid: parts[2] };
     return { name: 'home' };
@@ -36,16 +37,34 @@
       return;
     }
     if (!Auth.ok) { app.innerHTML = Views.loginGate(); return; }
+    const newBtn = document.querySelector('.topnav [data-nav="new"]');
+    if (newBtn) newBtn.style.display = Auth.isHost ? '' : 'none';
     if (route.name === 'qr') {
       app.innerHTML = Views.qrPage();
       return;
     }
+    if (route.name === 'hq') {
+      app.innerHTML = Views.hqPage();
+      return;
+    }
+    // TV nav link lights up once the LAN control tower is connected
+    const tvLink = document.getElementById('nav-tv');
+    const hqUrl = (Store.setting('hqUrl') || '').replace(/\/+$/, '');
+    if (tvLink) {
+      tvLink.style.display = hqUrl ? '' : 'none';
+      if (hqUrl) tvLink.href = hqUrl + '/tv.html';
+    }
     switch (route.name) {
       case 'players':    app.innerHTML = Views.players(); break;
-      case 'new':        app.innerHTML = Views.newTournament(); break;
+      case 'new':
+        app.innerHTML = Auth.isHost ? Views.newTournament()
+          : '<section><div class="empty">🎛 Creating tournaments is a host job — grab Paul or Chris. You can still <a href="#/players">form your own team</a>.</div></section>';
+        break;
       case 'tournament': app.innerHTML = Views.tournamentPage(currentTournament()); break;
       case 'match':      app.innerHTML = Views.scorePage(currentTournament(), currentMatch()); break;
-      default:           app.innerHTML = Views.overview();
+      default:
+        app.innerHTML = Views.overview();
+        Views.loadHqStandings();
     }
     $$('.topnav a').forEach(a => a.classList.toggle('on', a.dataset.nav === route.name ||
       (a.dataset.nav === 'home' && ['tournament', 'match'].includes(route.name))));
@@ -110,13 +129,14 @@
       /* players page */
       case 'add-players': {
         const input = $('#new-players');
-        const n = Store.addPlayers(input.value.split(/[,\n;]+/));
+        const n = Store.addPlayers(input.value.split(/[,\n;]+/).map(censorName));
         if (n) toast(`Added ${n} player${n > 1 ? 's' : ''}.`, 'ok');
         input.value = '';
         render();
         break;
       }
       case 'remove-player': {
+        if (!Auth.isHost) { toast('🎛 Only hosts can remove players.', 'error'); break; }
         if (confirm(`Remove ${Store.playerName(el.dataset.id)} from the pool?`)) {
           Store.removePlayer(el.dataset.id);
           render();
@@ -124,16 +144,27 @@
         break;
       }
       case 'create-team': {
-        const name = $('#team-name').value.trim();
+        const raw = $('#team-name').value.trim();
         const ids = $$('.team-pick:checked').map(x => x.value);
-        if (!name) { toast('Give the team a name.', 'error'); break; }
+        if (!raw) { toast('Give the team a name.', 'error'); break; }
         if (!ids.length) { toast('Pick at least one player.', 'error'); break; }
+        // guests can form their own teams — exactly two players
+        if (!Auth.isHost && ids.length !== 2) {
+          toast('Teams you form yourself are 2 players — pick exactly two (hosts can make other sizes).', 'error');
+          break;
+        }
+        const name = censorName(raw);
         Store.addStaticTeam(name, ids);
-        toast(`Static team <b>${esc(name)}</b> created.`, 'ok');
+        toast(name === raw
+          ? `Team <b>${esc(name)}</b> created. 🤝`
+          : `Team <b>${esc(name)}</b> created — name cleaned up by the censor. 🧼`, 'ok');
         render();
         break;
       }
       case 'remove-team': {
+        const team = Store.state.staticTeams.find(t => t.id === el.dataset.id);
+        const mine = team && team.playerIds.some(pid => Store.playerName(pid).toLowerCase() === (Auth.name || '').toLowerCase());
+        if (!Auth.isHost && !mine) { toast('You can only delete a team you\'re on (hosts can delete any).', 'error'); break; }
         Store.removeStaticTeam(el.dataset.id);
         render();
         break;
@@ -225,6 +256,16 @@
       }
       case 'qr-print': {
         window.print();
+        break;
+      }
+
+      /* LAN control-tower bridge */
+      case 'hq-save': {
+        const v = $('#hq-url').value.trim().replace(/\/+$/, '');
+        if (v && !/^https?:\/\//.test(v)) { toast('URL needs to start with http:// or https://', 'error'); break; }
+        Store.setSetting('hqUrl', v);
+        toast(v ? '🎪 Event HQ linked — every synced device gets it.' : 'Event HQ link cleared.', 'ok');
+        location.hash = '#/';
         break;
       }
 

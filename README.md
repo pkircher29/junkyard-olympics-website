@@ -37,14 +37,28 @@ ORGANIZER_TOKENS=<chris-secret>,<paul-secret> npm run build && npm start
 npm test   # vitest suite
 ```
 
-## Merge plan
+## Merge status
 
 See [`docs/COMPARISON.md`](docs/COMPARISON.md) for the full head-to-head.
-Short version: **Paul's deployed cloud stack is the backbone** (works on cell
-data, no host machine, has the jukebox); **Chris's TV broadcast mode, Flair,
-cannon engine, confirm/dispute flow, and design system get ported onto it** in
-that order — with `lan-server/` kept intact as the reference implementation and
-the internet-outage fallback.
+**Paul's deployed cloud stack is the backbone**; Chris's work is merging in:
+
+Done:
+- Chris's brand art + surface system (masthead/taglines, ticket-tab courier
+  nav, comic outlines, halftone grit) applied across both cloud sites
+- His QR signup flow (scan -> name only -> in) live on both sites
+- His event catalog merged (Field Pong, Bocce Ball, Volley Strike, Badminton)
+- Guests form their own 2-person teams; team/player names pass an obvious
+  profanity censor; tournament creation is hosts-only
+- **Event HQ bridge**: the cloud site links to this repo's `lan-server`
+  (TV broadcast, cannon console, organizer) and pulls its championship +
+  Flair standings live. The HQ URL is host-configured at `#/hq` and syncs to
+  every device - use the LAN IP, a Tailscale hostname, or a **Tailscale
+  Funnel** URL (`tailscale funnel 8790` on the host) so phones reach it from
+  anywhere. `lan-server` now sends read-only CORS headers for exactly this.
+
+Next up (in value order): port TV broadcast natively, Flair, confirm/dispute
+results, consolation bracket path, cannon engine. `lan-server/` stays intact
+as the reference implementation and the internet-outage fallback.
 
 ## Credits
 
