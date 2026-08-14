@@ -25,8 +25,19 @@
     return t ? t.matches.find(m => m.id === route.mid) : null;
   }
 
+  let lastViewKey = '';
+
   function render() {
     route = parseHash();
+    // re-rendering the SAME view (e.g. toggling an event) keeps your scroll
+    // position; only an actual page change jumps to the top
+    const viewKey = [route.name, route.tid || '', route.mid || '', Auth.ok ? 1 : 0].join(':');
+    const sameView = viewKey === lastViewKey;
+    lastViewKey = viewKey;
+    const keepY = window.scrollY;
+    const settle = () => {
+      window.scrollTo({ top: sameView ? keepY : 0, behavior: 'instant' });
+    };
     const app = $('#app');
     const who = $('#who');
     if (who) who.textContent = Auth.ok ? `👤 ${Auth.name}${Auth.isHost ? ' 🎛' : ''} ↩` : '';
@@ -35,17 +46,20 @@
       if (Auth.ok) { location.hash = '#/'; return; }
       app.innerHTML = Views.joinGate(route.code);
       const n = $('#j-name'); if (n) n.focus();
+      settle();
       return;
     }
-    if (!Auth.ok) { app.innerHTML = Views.loginGate(); return; }
+    if (!Auth.ok) { app.innerHTML = Views.loginGate(); settle(); return; }
     const newBtn = document.querySelector('.topnav [data-nav="new"]');
     if (newBtn) newBtn.style.display = Auth.isHost ? '' : 'none';
     if (route.name === 'qr') {
       app.innerHTML = Views.qrPage();
+      settle();
       return;
     }
     if (route.name === 'hq') {
       app.innerHTML = Views.hqPage();
+      settle();
       return;
     }
     // TV nav link lights up once the LAN control tower is connected
@@ -71,7 +85,7 @@
     }
     $$('.topnav a').forEach(a => a.classList.toggle('on', a.dataset.nav === route.name ||
       (a.dataset.nav === 'home' && ['tournament', 'match'].includes(route.name))));
-    window.scrollTo(0, 0);
+    settle();
   }
 
   /* ---------- match flow ---------- */
