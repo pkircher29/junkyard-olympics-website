@@ -241,3 +241,5 @@ h1, .brand { font-style: italic; }
   text-align: justify; text-align-last: justify; white-space: nowrap; overflow: hidden;
 }
 .topbar.stacked #nav { justify-content: center; flex-wrap: wrap; }
+
+.topbar.stacked .brand em { margin-left: .16em; }
