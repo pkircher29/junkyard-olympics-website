@@ -251,9 +251,9 @@
         break;
       }
 
-      /* host QR poster generator — plain site link, no secrets in the QR */
+      /* host QR poster generator — points at the main site (Chris's signup) */
       case 'qr-make': {
-        const url = `${location.origin}/`;
+        const url = 'https://junkyardolympics.com/';
         const qr = qrcode(0, 'M');
         qr.addData(url);
         qr.make();
@@ -262,8 +262,8 @@
             <img class="qr-hero" src="assets/junkyard-hero.jpg" alt="">
             <h2>SCAN TO JOIN THE GAMES</h2>
             <div class="qr-code">${qr.createSvgTag({ cellSize: 6, margin: 2 })}</div>
-            <p>Scan → type your name + the party password → compete. 🏆🎶</p>
-            <p class="qr-pass-line">PARTY PASSWORD: ________________</p>
+            <p>Scan → type your name → compete. No email, no password. 🏆</p>
+            <p class="qr-pass-line">🎶 JUKEBOX PASSWORD: ________________</p>
           </div>
           <div class="addrow" style="margin-top:10px">
             <input value="${esc(url)}" readonly onclick="this.select()">

@@ -35,6 +35,32 @@ const TYPES = {
   md: 'text/plain; charset=utf-8',
 };
 
+/* The MAIN SITE (junkyardolympics.com) is Chris's control tower — his full
+   app, proxied over the tailnet bridge:
+     guest -> this worker -> VPS relay (relay.junkyardolympics.com:8880,
+     socat) -> tailnet -> RecRoomRig:8790 (Node/SQLite server).
+   Paul's bracket scoreboard lives on bracket.junkyardolympics.com (static
+   files from this repo). The sync API (/r/:room) answers on every host. */
+const HQ_ORIGIN = 'http://relay.junkyardolympics.com:8880';
+const HQ_HOSTS = ['junkyardolympics.com', 'www.junkyardolympics.com', 'hq.junkyardolympics.com'];
+
+function hqDownPage() {
+  return new Response(`<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junkyard Olympics</title></head>
+<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  font-family:'Courier New',monospace;background:#f1e3c1;color:#171814;text-align:center;padding:20px">
+<div style="max-width:440px;border:3px solid #171814;background:#faf3e0;box-shadow:6px 6px 0 rgba(23,24,20,.8);padding:26px">
+  <h1 style="font-family:Impact,'Arial Narrow',sans-serif;letter-spacing:.02em;margin:0 0 8px">JUNKYARD OLYMPICS</h1>
+  <p style="font-weight:700;text-transform:uppercase;font-size:.8rem;letter-spacing:.1em;color:#a73520">control tower offline</p>
+  <p>The event server isn't reachable right now. The rest of the yard still works:</p>
+  <p style="margin-top:14px">
+    <a href="https://bracket.junkyardolympics.com" style="display:inline-block;border:2px solid #171814;background:#e65f1a;color:#171814;font-weight:700;padding:10px 16px;text-decoration:none;box-shadow:3px 3px 0 rgba(23,24,20,.8)">🏆 Scoreboard</a>
+    <a href="https://music.junkyardolympics.com" style="display:inline-block;border:2px solid #171814;background:#faf3e0;color:#171814;font-weight:700;padding:10px 16px;text-decoration:none;box-shadow:3px 3px 0 rgba(23,24,20,.8)">🎶 Jukebox</a>
+  </p>
+</div></body></html>`, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+
 export default {
   async fetch(req, env) {
     const cors = {
@@ -45,6 +71,20 @@ export default {
     };
     const url = new URL(req.url);
     const m = url.pathname.match(/^\/r\/([a-zA-Z0-9_-]{1,64})$/);
+
+    // Chris's app on the main domain — every path except the sync API
+    if (!m && HQ_HOSTS.includes(url.hostname)) {
+      try {
+        const upstream = await fetch(new Request(HQ_ORIGIN + url.pathname + url.search, req));
+        // network failures surface as synthetic Cloudflare 52x responses
+        if (upstream.status >= 520 && upstream.status <= 530) return hqDownPage();
+        const headers = new Headers(upstream.headers);
+        if (url.pathname.startsWith('/api/')) headers.set('Access-Control-Allow-Origin', '*');
+        return new Response(upstream.body, { status: upstream.status, headers });
+      } catch (e) {
+        return hqDownPage();
+      }
+    }
 
     /* ---------- sync API ---------- */
     if (m) {
