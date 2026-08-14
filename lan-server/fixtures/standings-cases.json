@@ -1,0 +1,30 @@
+{
+  "description": "Placement fixtures for Cannon + best-three field-event championship arithmetic.",
+  "placementPoints": {"1":10,"2":7,"3":5,"4":3,"completed":1},
+  "cases": [
+    {
+      "key":"best-three-drops-weaker",
+      "cannon":7,
+      "field":[10,7,5,3,1],
+      "expected":{"total":29,"counted":[10,7,5],"dropped":[3,1],"eligible":true}
+    },
+    {
+      "key":"cannon-always-counts",
+      "cannon":1,
+      "field":[10,7,5,3],
+      "expected":{"total":23,"counted":[10,7,5],"dropped":[3],"eligible":true}
+    },
+    {
+      "key":"only-two-fields-ineligible",
+      "cannon":10,
+      "field":[10,7],
+      "expected":{"total":27,"counted":[10,7],"dropped":[],"eligible":false}
+    },
+    {
+      "key":"missing-cannon-ineligible",
+      "cannon":null,
+      "field":[10,7,5,3],
+      "expected":{"total":22,"counted":[10,7,5],"dropped":[3],"eligible":false}
+    }
+  ]
+}

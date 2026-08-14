@@ -1,0 +1,38 @@
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+import { createApp } from "./app.js";
+import { backupDatabase, createDatabase } from "./db.js";
+
+const dataDir = process.env.DATA_DIR ?? path.resolve("data");
+await mkdir(dataDir, { recursive: true });
+const databasePath =
+  process.env.DATABASE_PATH ?? path.join(dataDir, "junkyard.sqlite");
+const organizerTokens = (process.env.ORGANIZER_TOKENS ?? "")
+  .split(",")
+  .map((x) => x.trim())
+  .filter(Boolean);
+if (!organizerTokens.length)
+  throw new Error(
+    "ORGANIZER_TOKENS must contain comma-separated high-entropy credentials",
+  );
+
+const db = createDatabase(databasePath);
+if (databasePath !== ":memory:") {
+  const backupDir = path.join(dataDir, "backups");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  await backupDatabase(db, path.join(backupDir, `startup-${stamp}.sqlite`));
+}
+const app = createApp({ db, organizerTokens });
+const port = Number(process.env.PORT ?? 8790);
+const host = process.env.HOST ?? "127.0.0.1";
+const server = app.listen(port, host, () =>
+  console.log(`Junkyard Olympics listening on http://${host}:${port}`),
+);
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () =>
+    server.close(() => {
+      db.close();
+      process.exit(0);
+    }),
+  );
+}

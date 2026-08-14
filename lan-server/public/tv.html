@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#090a08">
+  <title>Yard TV · Junkyard Olympics</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/tv.css">
+</head>
+<body data-surface="tv">
+  <a class="skip" href="#main">Skip broadcast header</a>
+  <header class="tv-head">
+    <div class="brand">Junkyard Olympics<small>Junkyard Field Network</small></div>
+    <div class="ticker" id="ticker">Opening field broadcast</div>
+    <span class="live-bug" id="connection-badge"><span class="signal"></span>CONNECTING</span>
+    <span data-clock></span>
+  </header>
+
+  <main id="main" class="tv-stage" aria-live="polite">
+    <section id="broadcast-idle" class="tv-panel active idle-panel" data-panel="idle">
+      <div class="idle-copy">
+        <span class="tv-kicker">Field broadcast opening</span>
+        <h1>Light the fuse.</h1>
+        <p id="idle-status">Waiting for the first official call.</p>
+      </div>
+      <img class="brand-poster" src="/assets/junkyard-reference.webp" alt="Junkyard Olympics cannon artwork">
+    </section>
+
+    <section class="tv-panel" data-panel="call" id="call-panel">
+      <div class="panel-grid">
+        <div>
+          <span class="tv-kicker" id="call-kicker">Official field call</span>
+          <h1 id="call-station">Station</h1>
+          <p class="event-label" id="call-event"></p>
+          <div class="tv-match" id="call-match"></div>
+        </div>
+        <aside class="call-aside"><div class="call-countdown" id="call-countdown">05:00</div><p>Report before the call window closes.</p></aside>
+      </div>
+    </section>
+
+    <section class="tv-panel" data-panel="queue">
+      <span class="tv-kicker">Upcoming queue</span><h1>On deck</h1><div class="tv-table" id="queue"></div>
+    </section>
+    <section class="tv-panel" data-panel="cannon">
+      <span class="tv-kicker">Junkyard Cannon · Official run progress</span><h1>Cannon lanes</h1><div class="cannon-tv" id="cannon-lanes"></div>
+    </section>
+    <section class="tv-panel" data-panel="standings">
+      <span class="tv-kicker">Canonical championship · Cannon + best three field finishes</span><h1>Top of the heap</h1><div class="podium" id="podium"></div><div class="tv-table" id="standings"></div>
+    </section>
+    <section class="tv-panel" data-panel="yard">
+      <span class="tv-kicker">Official station status</span><h1>Around the yard</h1><div class="station-grid" id="yard"></div>
+    </section>
+    <section class="tv-panel" data-panel="flair">
+      <span class="tv-kicker">Live Flair · Separate competition</span><h1>Flair feed</h1><div class="tv-table" id="flair"></div><aside class="flair-call" id="flair-latest"></aside>
+    </section>
+
+    <aside class="signup-card" id="signup-card"><div id="tv-qr"></div><p>Scan to sign up</p></aside>
+    <div class="connection-overlay" id="connection-overlay" hidden><b>RECONNECTING</b><span>Official data is temporarily unavailable. Display will recover automatically.</span></div>
+    <button id="enable-audio" class="enable-audio" hidden>Press OK to enable broadcast sound</button>
+  </main>
+
+  <footer class="tv-footer">
+    <div class="rotation-dots" id="rotation-dots"></div>
+    <div class="audio-controls">
+      <button id="replay" class="tv-btn">Replay</button>
+      <button id="mute" class="tv-btn" aria-pressed="false">Mute</button>
+      <button id="quiet" class="tv-btn" aria-pressed="false">Quiet</button>
+      <label>Vol <input id="volume" type="range" min="0" max="1" step=".05" value=".65"></label>
+      <button id="full" class="tv-btn">Full screen</button>
+    </div>
+    <span class="remote-hint">Remote: ← previous · OK / → next</span>
+    <span>Auto in <b id="next-in">12</b>s</span>
+  </footer>
+  <script type="module" src="/js/tv-broadcast.js"></script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#171814">
+  <title>Join · Junkyard Olympics</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="mobile-page signup-page">
+  <a class="skip" href="#main">Skip to signup</a>
+  <header class="mobile-masthead">
+    <div class="brand">Junkyard Olympics<small>Questionable engineering · official sport</small></div>
+    <span class="live-bug" data-connection aria-live="polite"></span>
+  </header>
+  <main id="main" class="mobile-shell">
+    <section class="signup-hero-art" aria-label="Illustrated Junkyard Olympics yard with flame cannon and gorilla">
+      <img src="/assets/junkyard-mobile-hero.webp" alt="A hand-illustrated scrapyard with a flame cannon, gorilla, flying debris, and questionable machinery" width="1200" height="1200">
+      <div class="hero-logo">Junkyard<br><strong>Olympics</strong></div>
+      <div class="event-date">Saturday <b>2 PM</b></div>
+      <span class="hero-sticker">Adults only</span>
+    </section>
+
+    <section id="existing-identity" class="signup-card dented-card existing-identity-card" aria-labelledby="existing-identity-title" hidden>
+      <p class="step-kicker">Competitor pass found</p>
+      <h1 id="existing-identity-title">This phone is registered</h1>
+      <p class="registered-person" id="existing-identity-name"></p>
+      <p>Continue to the saved competitor pass, or switch only if someone else is using this phone.</p>
+      <a class="primary-action" id="continue-existing" href="/participant.html">Continue as <span id="continue-existing-name"></span> <span aria-hidden="true">→</span></a>
+      <button class="text-button switch-person-action" id="switch-person" type="button">Switch person on this phone</button>
+      <p id="identity-status" class="form-status" role="status"></p>
+    </section>
+
+    <form id="signup" class="signup-card dented-card" novalidate>
+      <section id="signup-step-name" class="signup-step" aria-labelledby="name-title">
+        <div class="step-kicker"><span>Step 1 of 2</span><span>No email. No password.</span></div>
+        <h1 id="name-title">What should we call you?</h1>
+        <label class="sr-only" for="displayName">Public display name</label>
+        <input class="signup-input" id="displayName" name="displayName" maxlength="40" autocomplete="nickname" placeholder="e.g. Rivet Rosie" required>
+        <p class="field-help">This public name appears on the yard TV.</p>
+        <button class="primary-action" id="pick-events" type="button">Pick my events <span aria-hidden="true">→</span></button>
+        <p id="name-status" class="form-status" role="alert"></p>
+      </section>
+
+      <section id="signup-step-events" class="signup-step" aria-labelledby="events-title" hidden>
+        <div class="step-kicker"><span>Step 2 of 2</span><button class="text-button" id="edit-name" type="button">Change name</button></div>
+        <h1 id="events-title">Pick your events</h1>
+        <p class="plain-instruction">Tap every event you want to play. The Cannon is required for the championship podium.</p>
+        <fieldset class="event-fieldset">
+          <legend class="sr-only">Available events</legend>
+          <div id="event-list" class="event-card-list" aria-live="polite"></div>
+        </fieldset>
+        <div class="podium-note"><b>Cannon required</b><span>Finish Cannon + 3 field events to be podium eligible.</span></div>
+        <button class="primary-action" id="enter-yard" type="submit" disabled>Enter the Junkyard <span aria-hidden="true">→</span></button>
+        <p id="form-status" class="form-status" role="alert"></p>
+      </section>
+
+      <section id="signup-confirmation" class="signup-step confirmation-panel" aria-labelledby="saved-title" hidden>
+        <span class="confirmation-mark" aria-hidden="true">✓</span>
+        <p class="step-kicker">You are in</p>
+        <h1 id="saved-title">Identity saved to this phone.</h1>
+        <p>Keep using this browser and your private competitor pass will come back automatically.</p>
+        <a class="primary-action" id="open-dashboard" href="/participant.html">Open my dashboard <span aria-hidden="true">→</span></a>
+      </section>
+    </form>
+    <p class="privacy-note">Local Wi-Fi · No telemetry · Your private token is never shown</p>
+  </main>
+  <script type="module" src="/js/signup-page.js"></script>
+</body>
+</html>

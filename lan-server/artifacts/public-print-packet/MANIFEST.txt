@@ -1,0 +1,58 @@
+JUNKYARD OLYMPICS PUBLIC PRINT PACKET MANIFEST
+DO NOT DEPLOY OR PRINT AUTOMATICALLY
+
+COPY/PRINT ORDER
+01  Packet Index
+02  Event Signup
+03  The Crusher - Ladder Ball
+04  Scrap Heap Two - Field Pong
+05  Sack Attack - Cornhole
+06  Can Crusher Court - KanJam
+07  Flight Risk - Lawn Darts
+08  The Gravel Pit - Bocce Ball
+09  Strike Yard - Volley Strike
+10  Washer Wreck - Washers
+11  Paper Score & Check-In - Ladder Ball
+12  Paper Score & Check-In - Field Pong
+13  Paper Score & Check-In - Cornhole
+14  Paper Score & Check-In - KanJam
+15  Paper Score & Check-In - Lawn Darts
+16  Paper Score & Check-In - Bocce Ball
+17  Paper Score & Check-In - Volley Strike
+18  Paper Score & Check-In - Washers
+19  Junkyard Cannon - Lane 1 Paper Ledger
+20  Junkyard Cannon - Lane 2 Paper Ledger
+
+PUBLIC QR URLS
+http://192.168.1.101:8790/
+http://192.168.1.101:8790/station/station-1
+http://192.168.1.101:8790/station/station-2
+http://192.168.1.101:8790/station/station-3
+http://192.168.1.101:8790/station/station-4
+http://192.168.1.101:8790/station/station-5
+http://192.168.1.101:8790/station/station-6
+http://192.168.1.101:8790/station/station-7
+http://192.168.1.101:8790/station/station-8
+
+SHA-256 (paths relative to this manifest)
+8a8cc5f0371a23900253ccaf63eb8a650f7f141313b7515d4a73cdfec92b580a  junkyard-olympics-public-print-packet.pdf
+698513219bba2d830e2491c0ea5e48a7847b6fe2b282ea52987af9a56b52a619  pages/page-01.png
+84d14b3d753cbe3756757365cdd752d81d9e8ef9da395a67b02c6013eb99addd  pages/page-02.png
+8b2803fb66939a425dca3f9e970420ad817b01109f425def3b6a84230b0c455f  pages/page-03.png
+1b5463a1309aaddede66445f7241b08b2d110674d4a6889d7929ac8c3a22c780  pages/page-04.png
+a0973a0de9975ee0389e7f2bf3f6a30237a2cb9df4a611f5c0f689e517ec1ce2  pages/page-05.png
+d8f7dcbd46506cc5a26da8ff06cdefb858a4b64fe3d20ec4aad9caefb4cef828  pages/page-06.png
+7fda9f17c89989e0a1c88c992170feec33f42a80c7f289f0b8325a92d68796bf  pages/page-07.png
+884384609dcdc713d7f6cb4aa667cf53228f4904a398eceb878d9e8677ad7903  pages/page-08.png
+1eb38a895c04311becb02f6f97301af2a3d2e78ee2e4f7af34adba372f355b79  pages/page-09.png
+91b7189521aca32563f7ff384bbf1ae052d8120203a7bed5e2a02c0d4a13d57f  pages/page-10.png
+a5a1a13aa1df832a3a423f9a97e3853ceaa99cd9509014b09b1c925ae0f472e8  pages/page-11.png
+4fc670795f2dbdf98b6035b8ee28b8c42bf305cd199a817af3ba8f6d42c6641b  pages/page-12.png
+11c8a93947db6fdfeb0649fbbea712cdc11b9d46c35e787adb788bce2bd42aa5  pages/page-13.png
+11cec6947f10e81a9ba68edae6102914eb04213df70302a9de6f94af91bf1ff4  pages/page-14.png
+d6ee54c5cdbfab9a57ccdcf69fa2b767ce0a7cdd959545ecd03ba471f65c6aaa  pages/page-15.png
+1d0e621343795e1d38c1f318f0b20870de91add6e5a9d43643da73b63dbdc8a4  pages/page-16.png
+b171dbe4c609482b7b0e378b87a57d06a36f264e0eb2aae872eb058cb0465bd7  pages/page-17.png
+1ee221af111aa4cbb4d14a4110120d8d35a6320295e5b9776d9eb12f3ca30586  pages/page-18.png
+6fda9a4013d139717ac62f1cf70278f570465b524bff7beb62f34ffe12640787  pages/page-19.png
+29cebff3a37cc1b2db1492ce0ba4ea05cfca70bdb043034eaf80cea39c5ee9c7  pages/page-20.png

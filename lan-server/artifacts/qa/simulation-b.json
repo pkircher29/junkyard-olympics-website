@@ -1,0 +1,420 @@
+{
+  "verdict": "PASS",
+  "exactSha": "bf8f0a0854b37257b85f442bcb088889216e3254",
+  "runtimeMs": 1063.159,
+  "counts": {
+    "participants": 30,
+    "duplicateDisplayNames": 1,
+    "eventEntries": 74,
+    "teams": 34,
+    "trioTeams": 1,
+    "cannonPracticeShots": 150,
+    "cannonScoredShots": 300,
+    "cannonPlacementRows": 8,
+    "finalMatches": 23,
+    "consolationFinalMatches": 3,
+    "disputes": 1,
+    "resolvedDisputes": 1,
+    "substitutions": 1,
+    "flairProps": 5,
+    "flairVotes": 1,
+    "auditEntries": 564,
+    "invariantChecks": 68
+  },
+  "productDefects": [],
+  "milestones": [
+    {
+      "name": "roster",
+      "details": {
+        "adults": 30,
+        "duplicateDisplayName": "Alex Scrap"
+      }
+    },
+    {
+      "name": "cannon",
+      "details": {
+        "teams": 15,
+        "practiceShots": 150,
+        "scoredShots": 300,
+        "shootoutRounds": 2,
+        "placements": 8
+      }
+    },
+    {
+      "name": "head-to-head",
+      "details": {
+        "events": 4,
+        "simultaneousStations": 2,
+        "confirmed": 1,
+        "disputedResolved": 1,
+        "forfeits": 20,
+        "consolationCompleted": 3,
+        "substitutions": 1
+      }
+    },
+    {
+      "name": "championship",
+      "details": {
+        "eligible": 8,
+        "podium": [
+          "3c2e5063-a4f8-4153-b232-40a9da68f401",
+          "35663304-fdf2-438b-b0c7-559c4779d320",
+          "3a33662f-0d85-43bc-b474-cc761b6cd542"
+        ],
+        "formula": "Cannon + best 3 fields",
+        "defects": []
+      }
+    },
+    {
+      "name": "resilience",
+      "details": {
+        "backupPath": "/home/chris/junkyard-event-day-final-b-artifacts/backups/0ef9e261-fd5b-4bec-ae62-6cd24df368af.sqlite",
+        "jsonExportRows": 30,
+        "csvRows": 30,
+        "restartFactory": true
+      }
+    }
+  ],
+  "checks": [
+    {
+      "name": "exact candidate SHA",
+      "details": {
+        "actualSha": "bf8f0a0854b37257b85f442bcb088889216e3254"
+      }
+    },
+    {
+      "name": "candidate starts clean",
+      "details": {}
+    },
+    {
+      "name": "injectable app factory health",
+      "details": {}
+    },
+    {
+      "name": "30 adults registered",
+      "details": {}
+    },
+    {
+      "name": "duplicate display names preserve distinct identity",
+      "details": {}
+    },
+    {
+      "name": "identity restore 8d5ecf08-1fd0-4121-8369-56366b22c524",
+      "details": {}
+    },
+    {
+      "name": "identity restore 0f5a75bc-8c52-4d61-b0da-fb9e42d702a8",
+      "details": {}
+    },
+    {
+      "name": "rolling event joins settle at 15",
+      "details": {}
+    },
+    {
+      "name": "Cannon forms 15 complete pairs",
+      "details": {}
+    },
+    {
+      "name": "Cannon assignments use both physical lane prefixes",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 36157107-7b6c-445a-8580-93e0aa5e46bc",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota eb471232-444b-4cd1-8909-a09179861829",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 573bdce0-7a37-4655-a312-0a8d1126f1f0",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota b7275f1e-4d1f-4923-b3c0-b4e72475376f",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 36712678-d582-4844-be6f-900dc5da4032",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 1f42563c-152b-442c-a744-68b7960775a0",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 00e881fe-324d-42b0-ae0d-5e59b88a86b9",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 7a429979-ac44-47fd-b555-9c4b3f1874b0",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 2befa253-ab1f-47eb-85ab-b9e81cf91be4",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 6f06c72a-3e59-448c-ae0d-c34eac4f0d07",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 3312335f-dda0-4f5d-8888-d09dfe080485",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 69d27965-1d49-40e8-8e8e-e9cb749bc40f",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 7fb3ed9f-809e-4094-bc99-ba7fa35f8897",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota 3d20e6b0-728d-4289-b96f-d8903fbe9a54",
+      "details": {}
+    },
+    {
+      "name": "Cannon quota a5883b9d-8638-43dc-b384-eb285e72ee7c",
+      "details": {}
+    },
+    {
+      "name": "Cannon exact shot totals",
+      "details": {
+        "practice": 150,
+        "scored": 300
+      }
+    },
+    {
+      "name": "Cannon has unresolved top-four tie",
+      "details": {
+        "tiedTeams": 13
+      }
+    },
+    {
+      "name": "Cannon tie remains after equal first sudden-death round",
+      "details": {}
+    },
+    {
+      "name": "Cannon multi-round tie resolves uniquely",
+      "details": {}
+    },
+    {
+      "name": "Cannon finalized top-four placements",
+      "details": {
+        "placementRows": 8
+      }
+    },
+    {
+      "name": "Cannon top four supplies eight championship-core adults",
+      "details": {}
+    },
+    {
+      "name": "odd 15-person pool forms six pairs and one trio",
+      "details": {}
+    },
+    {
+      "name": "two stations call simultaneous matches",
+      "details": {
+        "station1": "e726c22a-2fdc-47a9-b422-e9d712058118",
+        "station2": "ea3bb030-8142-4e7d-b7b9-05c516bcec96"
+      }
+    },
+    {
+      "name": "simultaneous calls have disjoint participants",
+      "details": {}
+    },
+    {
+      "name": "match e726c22a-2fdc-47a9-b422-e9d712058118 activated by opposing check-ins",
+      "details": {}
+    },
+    {
+      "name": "opponent confirmation advances once",
+      "details": {}
+    },
+    {
+      "name": "match ea3bb030-8142-4e7d-b7b9-05c516bcec96 activated by opposing check-ins",
+      "details": {}
+    },
+    {
+      "name": "disagreement freezes advancement",
+      "details": {}
+    },
+    {
+      "name": "organizer resolves dispute exactly once",
+      "details": {}
+    },
+    {
+      "name": "cooldown blocks at 4:59",
+      "details": {}
+    },
+    {
+      "name": "cooldown expires at 5:00",
+      "details": {}
+    },
+    {
+      "name": "departure substitution is public and reversible",
+      "details": {}
+    },
+    {
+      "name": "replacement differs from leaver",
+      "details": {}
+    },
+    {
+      "name": "organizer forfeit finalizes match",
+      "details": {}
+    },
+    {
+      "name": "ladder-ball has no unresolved playable bracket matches",
+      "details": {
+        "remaining": []
+      }
+    },
+    {
+      "name": "ladder-ball finalizes eight top-four participant placement rows",
+      "details": {
+        "placementRows": 9
+      }
+    },
+    {
+      "name": "field-pong has no unresolved playable bracket matches",
+      "details": {
+        "remaining": []
+      }
+    },
+    {
+      "name": "field-pong finalizes eight top-four participant placement rows",
+      "details": {
+        "placementRows": 8
+      }
+    },
+    {
+      "name": "cornhole has no unresolved playable bracket matches",
+      "details": {
+        "remaining": []
+      }
+    },
+    {
+      "name": "cornhole finalizes eight top-four participant placement rows",
+      "details": {
+        "placementRows": 8
+      }
+    },
+    {
+      "name": "kanjam has no unresolved playable bracket matches",
+      "details": {
+        "remaining": []
+      }
+    },
+    {
+      "name": "kanjam finalizes eight top-four participant placement rows",
+      "details": {
+        "placementRows": 8
+      }
+    },
+    {
+      "name": "consolation path was actually played",
+      "details": {
+        "ladder-ball": {
+          "completed": 3,
+          "consolationCompleted": 0
+        },
+        "field-pong": {
+          "completed": 9,
+          "consolationCompleted": 3
+        },
+        "cornhole": {
+          "completed": 3,
+          "consolationCompleted": 0
+        },
+        "kanjam": {
+          "completed": 4,
+          "consolationCompleted": 0
+        }
+      }
+    },
+    {
+      "name": "Flair combines props and three-point vote",
+      "details": {
+        "participantId": "1354603f-440e-4846-a150-24a71dba2eed",
+        "displayName": "Adult 23",
+        "propPoints": 2,
+        "votePoints": 3,
+        "total": 5,
+        "points": 5,
+        "categories": {
+          "Best Costume": 1,
+          "Great Sportsmanship": 1
+        }
+      }
+    },
+    {
+      "name": "championship has eligible competitors",
+      "details": {
+        "eligible": 8
+      }
+    },
+    {
+      "name": "championship always counts Cannon plus best three fields",
+      "details": {}
+    },
+    {
+      "name": "championship podium contains eligible competitors only",
+      "details": {}
+    },
+    {
+      "name": "Flair does not alter championship",
+      "details": {}
+    },
+    {
+      "name": "current-state public API reflects roster and matches",
+      "details": {}
+    },
+    {
+      "name": "public surface / current-state markers",
+      "details": {}
+    },
+    {
+      "name": "public surface /tv current-state markers",
+      "details": {}
+    },
+    {
+      "name": "public surface /station/station-1 current-state markers",
+      "details": {}
+    },
+    {
+      "name": "public surface /print current-state markers",
+      "details": {}
+    },
+    {
+      "name": "retired print surface contains no live-looking state",
+      "details": {}
+    },
+    {
+      "name": "JSON and CSV exports are non-empty",
+      "details": {}
+    },
+    {
+      "name": "SQLite backup artifact exists",
+      "details": {
+        "path": "/home/chris/junkyard-event-day-final-b-artifacts/backups/0ef9e261-fd5b-4bec-ae62-6cd24df368af.sqlite"
+      }
+    },
+    {
+      "name": "factory restart preserves committed state",
+      "details": {}
+    },
+    {
+      "name": "identity remains usable after restart",
+      "details": {}
+    }
+  ],
+  "artifacts": {
+    "root": "/home/chris/junkyard-event-day-final-b-artifacts",
+    "database": "/home/chris/junkyard-event-day-final-b-artifacts/event-day.sqlite",
+    "exportJson": "/home/chris/junkyard-event-day-final-b-artifacts/export.json",
+    "exportCsv": "/home/chris/junkyard-event-day-final-b-artifacts/export.csv",
+    "backup": "/home/chris/junkyard-event-day-final-b-artifacts/backups/0ef9e261-fd5b-4bec-ae62-6cd24df368af.sqlite",
+    "executable": "/home/chris/junkyard-event-day-simulation-fb7a537.mjs"
+  }
+}

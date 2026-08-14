@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#10100E"
+    android:keepScreenOn="true">
+
+    <WebView
+        android:id="@+id/web_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:focusable="true"
+        android:focusableInTouchMode="true" />
+
+    <LinearLayout
+        android:id="@+id/reconnect_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#E610100E"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="48dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="JUNKYARD OLYMPICS"
+            android:textColor="#FF7A1A"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <ProgressBar
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="24dp"
+            android:indeterminateTint="#FF7A1A" />
+
+        <TextView
+            android:id="@+id/reconnect_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Reconnecting…"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Press OK / Enter to reload now"
+            android:textColor="#B3FFFFFF"
+            android:textSize="16sp" />
+    </LinearLayout>
+</FrameLayout>

@@ -1,0 +1,160 @@
+TAP version 13
+# Subtest: HARNESS-001 fixtures describe exactly 30 adults including a duplicate public name
+ok 1 - HARNESS-001 fixtures describe exactly 30 adults including a duplicate public name
+  ---
+  duration_ms: 98.758735
+  type: 'test'
+  ...
+# Subtest: HARNESS-002 standings oracle encodes Cannon plus best-three and eligibility
+ok 2 - HARNESS-002 standings oracle encodes Cannon plus best-three and eligibility
+  ---
+  duration_ms: 1.448412
+  type: 'test'
+  ...
+# Subtest: ACC-001 health contract is reachable and explicit
+ok 3 - ACC-001 health contract is reachable and explicit
+  ---
+  duration_ms: 0.157061
+  type: 'test'
+  ...
+# Subtest: ACC-002/003 register 30 adults; duplicate names retain isolated identities across refresh
+ok 4 - ACC-002/003 register 30 adults; duplicate names retain isolated identities across refresh
+  ---
+  duration_ms: 99.608867
+  type: 'test'
+  ...
+# Subtest: ACC-004 participant authorization is isolated and public payloads leak no bearer tokens
+ok 5 - ACC-004 participant authorization is isolated and public payloads leak no bearer tokens
+  ---
+  duration_ms: 7.837107
+  type: 'test'
+  ...
+# Subtest: ACC-005 event pool join/leave is authorized, dynamic, and idempotent
+ok 6 - ACC-005 event pool join/leave is authorized, dynamic, and idempotent
+  ---
+  duration_ms: 14.4009
+  type: 'test'
+  ...
+# Subtest: ACC-006/007 pair formation covers even pools, makes one odd trio, and avoids available repeats
+ok 7 - ACC-006/007 pair formation covers even pools, makes one odd trio, and avoids available repeats
+  ---
+  duration_ms: 26.786823
+  type: 'test'
+  ...
+# Subtest: ACC-008/009 Cannon uses two lanes and stores exactly 20 scored plus 10 practice shots per team idempotently
+ok 8 - ACC-008/009 Cannon uses two lanes and stores exactly 20 scored plus 10 practice shots per team idempotently
+  ---
+  duration_ms: 161.614134
+  type: 'test'
+  ...
+# Subtest: ACC-010/011 multi-target stacking and organizer-confirmed Carnage are auditable and exact
+ok 9 - ACC-010/011 multi-target stacking and organizer-confirmed Carnage are auditable and exact
+  ---
+  duration_ms: 15.474985
+  type: 'test'
+  ...
+# Subtest: ACC-012/013 jackpot guarantees Cannon first; sudden death persists equal rounds and breaks top-four ties
+ok 10 - ACC-012/013 jackpot guarantees Cannon first; sudden death persists equal rounds and breaks top-four ties
+  ---
+  duration_ms: 33.277714
+  type: 'test'
+  ...
+# Subtest: ACC-014 eight-team bracket provides consolation without displacing main top four
+ok 11 - ACC-014 eight-team bracket provides consolation without displacing main top four
+  ---
+  duration_ms: 13.790327
+  type: 'test'
+  ...
+# Subtest: ACC-015 only one opposing participant may finalize a reported result atomically
+ok 12 - ACC-015 only one opposing participant may finalize a reported result atomically
+  ---
+  duration_ms: 25.644516
+  type: 'test'
+  ...
+# Subtest: ACC-016 disagreement freezes match, records dispute, and does not advance bracket
+ok 13 - ACC-016 disagreement freezes match, records dispute, and does not advance bracket
+  ---
+  duration_ms: 22.917727
+  type: 'test'
+  ...
+# Subtest: ACC-017 simultaneous station calls never double-book a participant
+ok 14 - ACC-017 simultaneous station calls never double-book a participant
+  ---
+  duration_ms: 20.36996
+  type: 'test'
+  ...
+# Subtest: ACC-018/019 cooldown boundary and five-minute timeout skip rather than forfeit
+ok 15 - ACC-018/019 cooldown boundary and five-minute timeout skip rather than forfeit
+  ---
+  duration_ms: 12.091985
+  type: 'test'
+  ...
+# Subtest: ACC-020 pre-semifinal late entry preserves results; post-semifinal championship entry is rejected
+ok 16 - ACC-020 pre-semifinal late entry preserves results; post-semifinal championship entry is rejected
+  ---
+  duration_ms: 30.317306
+  type: 'test'
+  ...
+# Subtest: ACC-021 departure substitution is public/reversible and cannot award duplicate placement points
+ok 17 - ACC-021 departure substitution is public/reversible and cannot award duplicate placement points
+  ---
+  duration_ms: 56.546812
+  type: 'test'
+  ...
+# Subtest: ACC-022/023 championship always counts Cannon plus best three fields and excludes ineligible podium entries
+ok 18 - ACC-022/023 championship always counts Cannon plus best three fields and excludes ineligible podium entries
+  ---
+  duration_ms: 11.916135
+  type: 'test'
+  ...
+# Subtest: ACC-024/025 Flair rejects self/duplicate props; final vote is one per voter worth three and cannot alter championship
+ok 19 - ACC-024/025 Flair rejects self/duplicate props; final vote is one per voter worth three and cannot alter championship
+  ---
+  duration_ms: 21.116274
+  type: 'test'
+  ...
+# Subtest: ACC-026 restart preserves committed identity/state and idempotent confirmation advances once
+ok 20 - ACC-026 restart preserves committed identity/state and idempotent confirmation advances once
+  ---
+  duration_ms: 15.27397
+  type: 'test'
+  ...
+# Subtest: ACC-027 organizer backup and JSON/CSV export contain current state; destructive restore is explicit and audited
+ok 21 - ACC-027 organizer backup and JSON/CSV export contain current state; destructive restore is explicit and audited
+  ---
+  duration_ms: 20.623114
+  type: 'test'
+  ...
+# Subtest: ACC-028/029 XSS remains inert on every HTML surface and empty/oversized inputs are rejected
+ok 22 - ACC-028/029 XSS remains inert on every HTML surface and empty/oversized inputs are rejected
+  ---
+  duration_ms: 22.530446
+  type: 'test'
+  ...
+# Subtest: ACC-030 signup, organizer login, voting, and result-report bursts are rate-limited
+ok 23 - ACC-030 signup, organizer login, voting, and result-report bursts are rate-limited
+  ---
+  duration_ms: 283.756894
+  type: 'test'
+  ...
+# Subtest: ACC-031/032 TV and station routes expose public operations without organizer mutation controls
+ok 24 - ACC-031/032 TV and station routes expose public operations without organizer mutation controls
+  ---
+  duration_ms: 6.942482
+  type: 'test'
+  ...
+# Subtest: ACC-033 print routes hand off to the verified public packet without live-looking state or bearer secrets
+ok 25 - ACC-033 print routes hand off to the verified public packet without live-looking state or bearer secrets
+  ---
+  duration_ms: 57.917396
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1144.762875

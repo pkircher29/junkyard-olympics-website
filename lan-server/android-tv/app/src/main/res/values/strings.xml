@@ -1,0 +1,5 @@
+<resources>
+    <string name="connecting">Connecting…</string>
+    <string name="reconnecting">Reconnecting…</string>
+    <string name="retrying_in_seconds">Offline — retrying in %1$d seconds…</string>
+</resources>

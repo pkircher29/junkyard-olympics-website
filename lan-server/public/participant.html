@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#171814">
+  <title>My Yard · Junkyard Olympics</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="mobile-page participant-page" data-state="loading">
+  <a class="skip" href="#main">Skip to my next action</a>
+  <header class="mobile-masthead participant-masthead">
+    <div class="brand">Junkyard Olympics<small>Competitor pass</small></div>
+    <span class="live-bug" data-connection aria-live="polite"></span>
+  </header>
+  <main id="main" class="participant-feed mobile-shell">
+    <div id="demo-banner" class="demo-banner" hidden><b>Demo preview</b><span>Illustrative data — not live results.</span></div>
+
+    <section id="participant-progress" class="greeting-panel" aria-labelledby="greeting">
+      <div>
+        <p class="feed-kicker">Your day in the yard</p>
+        <h1 id="greeting">Loading your competitor pass…</h1>
+      </div>
+      <div class="progress-copy"><b id="progress-count">0 of 0</b><span>results complete</span></div>
+      <div class="progress-track" aria-hidden="true"><span id="progress-bar"></span></div>
+    </section>
+
+    <section id="do-this-now" class="called-match-card" aria-labelledby="call-heading" hidden>
+      <div class="call-rivet" aria-hidden="true"></div>
+      <p class="action-label">Do this now</p>
+      <h2 id="call-heading">Report to <span id="call-station"></span></h2>
+      <p class="plain-instruction" id="call-instruction">Your match has been called. Go to the station and check in.</p>
+      <p class="call-event" id="call-event"></p>
+      <div class="mobile-matchup" id="call-matchup"></div>
+      <div class="countdown-row" id="call-countdown-row"><span>Time left to report</span><strong id="call-countdown">5:00</strong></div>
+      <div id="match-action-panel" class="match-action-panel">
+        <p id="match-action-status" class="plain-instruction">When you arrive, scan the printed QR sign at this station to check in your team.</p>
+        <div id="report-result-actions" class="mobile-action-stack" hidden>
+          <button class="primary-action" id="report-team-a" type="button"></button>
+          <button class="primary-action dark-action" id="report-team-b" type="button"></button>
+        </div>
+        <div id="confirm-result-actions" class="mobile-action-stack" hidden>
+          <button class="primary-action" id="confirm-result" type="button">Confirm this result</button>
+          <button class="secondary-action" id="dispute-result" type="button">That result is wrong</button>
+        </div>
+        <p id="match-mutation-status" class="form-status" role="status"></p>
+      </div>
+    </section>
+    <div id="call-empty" class="quiet-status"><b>No match is calling you right now.</b><span>Stay nearby. This card turns orange when it is time to report.</span></div>
+
+    <section id="up-next" class="feed-section" aria-labelledby="up-next-heading">
+      <div class="feed-heading"><span class="number-tag">01</span><div><p class="feed-kicker">Stay loose</p><h2 id="up-next-heading">Up next</h2></div></div>
+      <div id="up-next-list" class="feed-card-list"><p class="empty-copy">Loading your events…</p></div>
+    </section>
+
+    <section id="your-results" class="feed-section" aria-labelledby="results-heading">
+      <div class="feed-heading"><span class="number-tag rust-tag">02</span><div><p class="feed-kicker">In the books</p><h2 id="results-heading">Your results</h2></div></div>
+      <div id="results-list" class="feed-card-list"><p class="empty-copy">No completed results yet.</p></div>
+    </section>
+
+    <section id="flair" class="feed-section flair-section" aria-labelledby="flair-heading">
+      <div class="feed-heading"><span class="number-tag olive-tag">03</span><div><p class="feed-kicker">Separate contest</p><h2 id="flair-heading">Flair / Showboat</h2></div></div>
+      <p>See something magnificent, ridiculous, or surprisingly sporting? Throw them a prop.</p>
+      <button class="secondary-action" id="open-flair" type="button">Give someone Flair <span aria-hidden="true">＋</span></button>
+      <div id="flair-form" class="flair-form" hidden>
+        <label for="flair-person">Who earned it?</label><select id="flair-person"></select>
+        <label for="flair-category">What happened?</label><select id="flair-category"><option value="BEST_COSTUME">Best Costume</option><option value="EPIC_ENTRANCE">Epic Entrance</option><option value="CREATIVE_TRASH_TALK">Creative Trash Talk</option><option value="SPECTACULAR_FAILURE">Spectacular Failure</option><option value="UNNECESSARY_SHOWMANSHIP">Unnecessary Showmanship</option><option value="JUNKYARD_INGENUITY">Junkyard Ingenuity</option><option value="GREAT_SPORTSMANSHIP">Great Sportsmanship</option><option value="SPECTACULAR_DESTRUCTION">Spectacular Destruction</option></select>
+        <button class="primary-action" id="send-flair" type="button">Throw the prop</button>
+        <p id="flair-status" class="form-status" role="status"></p>
+      </div>
+    </section>
+
+    <section id="championship-standings" class="feed-section standings-section" aria-labelledby="standings-heading">
+      <div class="feed-heading"><span class="number-tag steel-tag">04</span><div><p class="feed-kicker">Cannon + best three</p><h2 id="standings-heading">Championship standings</h2></div></div>
+      <ol id="standings-list" class="mobile-standings"><li class="empty-copy">No official placements yet.</li></ol>
+    </section>
+
+    <section id="device-reset" class="device-reset-panel" aria-labelledby="reset-heading">
+      <h2 id="reset-heading">Leaving this phone?</h2>
+      <p>Reset only if the next person should not open your competitor pass.</p>
+      <button class="reset-action" id="reset-device" type="button">Sign out and reset this device</button>
+    </section>
+  </main>
+  <footer class="mobile-footer">Private identity stays on this device · No cloud required</footer>
+  <script type="module" src="/js/participant-page.js"></script>
+</body>
+</html>

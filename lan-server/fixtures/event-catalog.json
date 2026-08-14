@@ -1,0 +1,19 @@
+{
+  "description": "Deterministic acceptance catalog; implementations may return additional fields.",
+  "events": [
+    {"key":"cannon","name":"Junkyard Cannon","kind":"cannon","stations":["Cannon Lane 1","Cannon Lane 2"]},
+    {"key":"ladder","name":"Ladder Ball","kind":"head-to-head","station":"Ladder Heap"},
+    {"key":"pong","name":"Field Pong","kind":"head-to-head","station":"Pong Pile"},
+    {"key":"cornhole","name":"Cornhole","kind":"head-to-head","station":"Bag Yard"},
+    {"key":"kanjam","name":"KanJam","kind":"head-to-head","station":"Kan Crater"}
+  ],
+  "targets": [
+    {"key":"tire","name":"Hanging Tire","points":10},
+    {"key":"hubcap","name":"Hubcap","points":25},
+    {"key":"washer","name":"Million-Point Washer","points":1000000,"jackpot":true}
+  ],
+  "flairCategories": [
+    "Best Costume","Epic Entrance","Creative Trash Talk","Spectacular Failure",
+    "Unnecessary Showmanship","Junkyard Ingenuity","Great Sportsmanship","Spectacular Destruction"
+  ]
+}
