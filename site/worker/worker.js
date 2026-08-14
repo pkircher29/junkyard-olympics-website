@@ -42,7 +42,7 @@ const TYPES = {
    Paul's bracket scoreboard lives on bracket.junkyardolympics.com (static
    files from this repo). The sync API (/r/:room) answers on every host. */
 const HQ_ORIGIN = 'http://relay.junkyardolympics.com:8880';
-const HQ_HOSTS = ['junkyardolympics.com', 'www.junkyardolympics.com', 'hq.junkyardolympics.com'];
+const HQ_HOSTS = ['hq.junkyardolympics.com'];
 
 function hqDownPage() {
   return new Response(`<!doctype html><html><head><meta charset="utf-8">

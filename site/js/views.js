@@ -267,6 +267,134 @@ const Views = (() => {
     </section>`;
   }
 
+  /* =============== competitor pass (Chris's guest home screen) =============== */
+
+  function myTeamIds(t, pid) {
+    return new Set(t.teams.filter(tm => tm.playerIds.includes(pid)).map(tm => tm.id));
+  }
+
+  function competitorPass() {
+    const s = Store.state;
+    const me = Store.playerByName(Auth.name);
+    const myGames = me ? Store.gamesOf(me.id) : [];
+
+    // sweep every tournament for my matches: the call card, results, counts
+    let call = null, played = 0;
+    const results = [];
+    if (me) for (const t of s.tournaments) {
+      const teams = myTeamIds(t, me.id);
+      if (!teams.size) continue;
+      for (const m of t.matches) {
+        const mineA = teams.has(m.teamA), mineB = teams.has(m.teamB);
+        if (!mineA && !mineB) continue;
+        if (m.status === 'done' && !m.bye && !m.skipped) {
+          played++;
+          results.push({ t, m, won: teams.has(m.winner), myScore: mineA ? m.scoreA : m.scoreB,
+                         oppScore: mineA ? m.scoreB : m.scoreA, opp: mineA ? m.teamB : m.teamA,
+                         myTeam: mineA ? m.teamA : m.teamB });
+        }
+        if (m.status === 'live') call = { t, m, live: true };
+        else if (!call && Bracket.isReady(m) && t.status === 'active') call = { t, m, live: false };
+      }
+    }
+    results.sort((a, b) => (b.m.endedAt || '') < (a.m.endedAt || '') ? -1 : 1);
+
+    // 01 UP NEXT — one row per event I entered
+    const upNext = myGames.map(g => {
+      const preset = GAME_PRESETS.find(x => x.name === g) || { icon: '🏅' };
+      const t = s.tournaments.find(x => x.game === g && x.status === 'active') ||
+                s.tournaments.find(x => x.game === g);
+      let status = 'Entered · wait for your call', chip = 'READY', chipCls = 'chip-active', href = '#/games';
+      if (t) {
+        href = `#/t/${t.id}`;
+        const teams = me ? myTeamIds(t, me.id) : new Set();
+        if (t.status === 'complete') {
+          const podium = [t.placements.first, t.placements.second, t.placements.third];
+          const place = [...teams].map(id => podium.indexOf(id)).filter(i => i >= 0)[0];
+          status = place != null ? `Finished ${['🥇 1st', '🥈 2nd', '🥉 3rd'][place]}` : 'Event wrapped';
+          chip = 'DONE'; chipCls = 'chip-done';
+        } else if (teams.size) {
+          const next = t.matches.find(m => (teams.has(m.teamA) || teams.has(m.teamB)) &&
+            (m.status === 'live' || m.status === 'pending'));
+          if (next && next.status === 'live') { status = `LIVE — ${Bracket.matchLabel(t, next)}`; chip = 'LIVE'; chipCls = 'chip-live'; href = `#/m/${t.id}/${next.id}`; }
+          else if (next && Bracket.isReady(next)) { status = `You're up — ${Bracket.matchLabel(t, next)}`; chip = 'GO'; chipCls = 'chip-live'; }
+          else if (next) { status = 'In the bracket — waiting on earlier matches'; chip = 'SOON'; chipCls = 'chip-active'; }
+          else { status = 'Your run is over for this one'; chip = 'DONE'; chipCls = 'chip-done'; }
+        } else {
+          status = 'Bracket drawn — on the bench (subs happen!)'; chip = 'BENCH'; chipCls = 'chip-rule';
+        }
+      }
+      return `
+      <a class="passrow" href="${href}">
+        <span class="passicon">${preset.icon}</span>
+        <span class="passinfo"><b>${esc(g).toUpperCase()}</b><small>${status}</small></span>
+        <span class="chip ${chipCls}">${chip}</span>
+      </a>`;
+    }).join('');
+
+    const lb = Store.leaderboard();
+    const lbRows = lb.slice(0, 8).map((r, i) => `
+      <tr class="${me && r.id === me.id ? 'podium-1' : ''}">
+        <td class="rank">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</td>
+        <td>${esc(r.name)}${me && r.id === me.id ? ' ← you' : ''}</td>
+        <td class="pts">${r.points}</td><td>${r.played}</td>
+      </tr>`).join('');
+
+    return `
+    <section class="pass">
+      <div class="card passhead">
+        <p class="eyebrow">your day in the yard</p>
+        <div class="sec-head" style="margin:0">
+          <h1>Hey, ${esc(Auth.name)}.</h1>
+          <div class="passcount"><b>${played}</b><small>match${played === 1 ? '' : 'es'} played</small></div>
+        </div>
+      </div>
+
+      ${call ? `
+      <a class="callcard ${call.live ? 'live' : ''}" href="#/m/${call.t.id}/${call.m.id}">
+        <p class="eyebrow">${call.live ? '● match in progress' : 'report to your station'}</p>
+        <h2>${esc(call.t.name).toUpperCase()}</h2>
+        <p class="callvs"><b>${esc(Store.teamName(call.t, call.m.teamA))}</b> <span>VS</span> <b>${esc(Store.teamName(call.t, call.m.teamB))}</b></p>
+        <span class="btn ${call.live ? 'btn-live' : 'btn-accent'}">${call.live ? 'OPEN LIVE MATCH →' : 'GO TO MATCH →'}</span>
+      </a>` : `
+      <div class="card quietcard">No match is calling you right now. Stay nearby — this card lights up when it's time to play.</div>`}
+
+      <h2 class="plate"><span class="pnum p-rust">01</span><span class="ptitle"><small>stay loose</small>UP NEXT</span></h2>
+      ${myGames.length ? `<div class="passrows">${upNext}</div>`
+        : `<div class="empty">You haven't entered any events yet — <a href="#/games">pick your events</a> to get on the boards. 🎟</div>`}
+
+      <h2 class="plate"><span class="pnum p-soot">02</span><span class="ptitle"><small>in the books</small>YOUR RESULTS</span></h2>
+      ${results.length ? `<div class="passrows">${results.map(r => `
+        <a class="passrow" href="#/m/${r.t.id}/${r.m.id}">
+          <span class="passicon">${r.t.icon}</span>
+          <span class="passinfo"><b>${r.won ? 'W' : 'L'} · ${esc(Store.teamName(r.t, r.myTeam))} ${r.myScore}–${r.oppScore}</b>
+            <small>vs ${esc(Store.teamName(r.t, r.opp))} · ${esc(r.t.name)}</small></span>
+          <span class="chip ${r.won ? 'chip-done' : 'chip-rule'}">${r.won ? 'WON' : 'LOST'}</span>
+        </a>`).join('')}</div>`
+        : `<div class="card quietcard">No completed results yet. Finished matches will stack up here.</div>`}
+
+      <h2 class="plate"><span class="pnum p-olive">03</span><span class="ptitle"><small>tournament of tournaments</small>CHAMPIONSHIP STANDINGS</span></h2>
+      ${lb.length ? `<div class="tablewrap"><table class="lb">
+          <thead><tr><th></th><th>Player</th><th>Points</th><th>Played</th></tr></thead>
+          <tbody>${lbRows}</tbody></table></div>`
+        : `<div class="card quietcard">Standings appear once the first tournament finishes.</div>`}
+
+      <h2 class="plate"><span class="pnum p-rust">04</span><span class="ptitle"><small>on the board</small>ALL TOURNAMENTS</span></h2>
+      ${s.tournaments.length ? `<div class="passrows">${s.tournaments.map(t => `
+        <a class="passrow" href="#/t/${t.id}">
+          <span class="passicon">${t.icon}</span>
+          <span class="passinfo"><b>${esc(t.name).toUpperCase()}</b><small>${esc(t.game)} · ${t.teams.length} teams</small></span>
+          ${statusChip(t)}
+        </a>`).join('')}</div>`
+        : `<div class="card quietcard">No brackets on the board yet — the hosts fire them up as the day rolls.</div>`}
+
+      <p class="muted small" style="margin-top:18px;text-align:center">
+        <a href="#/games" style="color:var(--accent)">🎟 change my events</a> ·
+        <a href="#/players" style="color:var(--accent)">🤝 form a team</a> ·
+        <a href="https://music.junkyardolympics.com" style="color:var(--accent)">🎶 jukebox</a></p>
+    </section>`;
+  }
+
   /* =============== event signup (Chris's "pick my events" flow) =============== */
 
   function gamesSignup() {
@@ -717,6 +845,6 @@ const Views = (() => {
   }
 
   return { overview, players, newTournament, tournamentPage, scorePage, loginGate,
-           joinGate, qrPage, hqPage, loadHqStandings, gamesSignup,
+           joinGate, qrPage, hqPage, loadHqStandings, gamesSignup, competitorPass,
            getDraft, resetDraft, shuffleDraftTeams, draftTeamCount };
 })();

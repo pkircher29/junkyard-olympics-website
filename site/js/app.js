@@ -65,8 +65,9 @@
       case 'tournament': app.innerHTML = Views.tournamentPage(currentTournament()); break;
       case 'match':      app.innerHTML = Views.scorePage(currentTournament(), currentMatch()); break;
       default:
-        app.innerHTML = Views.overview();
-        Views.loadHqStandings();
+        // hosts get the control-room overview; competitors get their pass
+        app.innerHTML = Auth.isHost ? Views.overview() : Views.competitorPass();
+        if (Auth.isHost) Views.loadHqStandings();
     }
     $$('.topnav a').forEach(a => a.classList.toggle('on', a.dataset.nav === route.name ||
       (a.dataset.nav === 'home' && ['tournament', 'match'].includes(route.name))));

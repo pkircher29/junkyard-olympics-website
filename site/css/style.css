@@ -554,3 +554,60 @@ input, select, textarea { background: #fffaef; }
 .spanel.winner { border-color: var(--ok); box-shadow: 4px 4px 0 rgba(102, 115, 66, .45); }
 .wintag { color: var(--ok); }
 .brand small { color: var(--accent); }
+
+/* ==================== competitor pass (guest home) ==================== */
+.pass { max-width: 720px; margin: 0 auto; }
+.eyebrow {
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .16em; color: var(--accent2); margin-bottom: 4px;
+}
+.passhead h1 { font-size: clamp(1.7rem, 6vw, 2.4rem); margin: 0; }
+.passcount { text-align: right; line-height: 1.1; }
+.passcount b { font-size: 1.7rem; display: block; }
+.passcount small { font-family: 'Courier New', monospace; text-transform: uppercase; font-size: .68rem; color: var(--muted); }
+
+.callcard {
+  display: block; margin-top: 14px; padding: 20px;
+  background: var(--grad); color: #171814;
+  border: 3px solid var(--ink); border-radius: 8px;
+  box-shadow: 5px 5px 0 rgba(23, 24, 20, .8);
+}
+.callcard .eyebrow { color: #171814; }
+.callcard h2 { border: 0; margin: 4px 0 6px; padding: 0; color: #171814; }
+.callcard.live { animation: callpulse 1.6s infinite; }
+@keyframes callpulse {
+  0%, 100% { box-shadow: 5px 5px 0 rgba(23, 24, 20, .8); }
+  50% { box-shadow: 5px 5px 0 rgba(167, 53, 32, .9), 0 0 0 4px rgba(167, 53, 32, .25); }
+}
+.callvs { font-weight: 800; margin-bottom: 12px; }
+.callvs span { background: #171814; color: #f1e3c1; padding: 2px 8px; margin: 0 6px; font-size: .8rem; }
+
+.quietcard { margin-top: 14px; color: var(--muted); border-style: dashed; }
+
+.plate { display: flex; align-items: center; gap: 12px; border-bottom: 0 !important; padding-bottom: 0 !important; margin-top: 30px; }
+.pnum {
+  font-family: 'Saira Stencil One', sans-serif; font-size: 1.3rem; line-height: 1;
+  padding: 9px 11px; border: 2px solid var(--ink); color: #f1e3c1;
+  box-shadow: 3px 3px 0 rgba(23, 24, 20, .8); flex: none;
+}
+.p-rust { background: #a73520; }
+.p-soot { background: #171814; }
+.p-olive { background: #667342; }
+.ptitle { display: flex; flex-direction: column; line-height: 1.15; }
+.ptitle small {
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .66rem;
+  text-transform: uppercase; letter-spacing: .14em; color: var(--accent2);
+}
+
+.passrows { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.passrow {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  background: var(--card); border: 2px solid var(--ink); border-radius: 8px;
+  border-left: 10px solid var(--accent);
+  box-shadow: 4px 4px 0 rgba(23, 24, 20, .8);
+}
+.passrow:hover { background: #fff8ea; }
+.passrow .passicon { font-size: 1.5rem; flex: none; }
+.passrow .passinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.passrow .passinfo b { letter-spacing: .03em; }
+.passrow .passinfo small { font-family: 'Courier New', monospace; color: var(--muted); font-size: .76rem; }
