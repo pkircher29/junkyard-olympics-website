@@ -32,7 +32,9 @@ working tree.
 ```bash
 cd lan-server
 npm install
-ORGANIZER_TOKENS=<chris-secret>,<paul-secret> npm run build && npm start
+HOST=0.0.0.0 ORGANIZER_TOKENS=<chris-secret>,<paul-secret> npm run build && npm start
+# HOST=0.0.0.0 matters: the default binds loopback only, and the public
+# junkyardolympics.com relay arrives on the Tailscale interface
 # serves on port 8790 — participant/organizer/station/TV/print views in public/
 npm test   # vitest suite
 ```
