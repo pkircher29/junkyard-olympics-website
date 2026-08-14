@@ -736,3 +736,15 @@ h1, .passhead h1 { font-style: italic; }
 .sync-dot::before, .sync-dot::after { content: none !important; }
 .sync-live { background: #2ecc5e !important; box-shadow: 0 0 8px rgba(46, 204, 94, .7) !important; }
 .sync-error, .sync-off, .sync-connecting { background: #c0392b !important; box-shadow: none !important; }
+
+/* ==== stacked masthead: brand on top, tagline stretched across, nav below ==== */
+.topbar.stacked { display: block; padding: 12px 20px 10px; }
+.topbar.stacked .brand { display: flex; justify-content: center; font-size: clamp(1.6rem, 5vw, 2.2rem); }
+.topbar.stacked .brand span { flex-direction: row; gap: 0; }
+.brand-tag {
+  width: 100%; margin: 4px 0 10px;
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .64rem;
+  letter-spacing: .3em; text-transform: uppercase; color: var(--accent);
+  text-align: justify; text-align-last: justify; white-space: nowrap; overflow: hidden;
+}
+.topbar.stacked .topnav { justify-content: center; flex-wrap: wrap; }

@@ -229,3 +229,15 @@ input { background: #fffaef; }
 body { font-family: Arial, Helvetica, sans-serif; }
 h1, h2, .brand, .tname { font-family: var(--display); font-weight: 400; letter-spacing: .015em; }
 h1, .brand { font-style: italic; }
+
+/* ==== stacked masthead (match the scoreboard) ==== */
+.topbar.stacked { display: block; padding: 12px 18px 10px; }
+.topbar.stacked .brand { display: flex; justify-content: center; font-size: clamp(1.5rem, 5vw, 2rem); }
+.topbar.stacked .brand span { flex-direction: row; gap: 0; }
+.brand-tag {
+  width: 100%; margin: 4px 0 10px;
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: .64rem;
+  letter-spacing: .3em; text-transform: uppercase; color: var(--accent);
+  text-align: justify; text-align-last: justify; white-space: nowrap; overflow: hidden;
+}
+.topbar.stacked #nav { justify-content: center; flex-wrap: wrap; }
