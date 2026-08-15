@@ -22,7 +22,7 @@ async function cannonEntrants(count: number) {
 
 describe('Cannon physical setup hotfix', () => {
   it('migrates assignments to permit reusable physical lane ids', () => {
-    expect(db.pragma('user_version', { simple: true })).toBe(8);
+    expect(db.pragma('user_version', { simple: true })).toBe(11);
     const sql = String(db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='cannon_run_assignments'").get().sql).toLowerCase();
     expect(sql).toContain('primary key(run_id,team_id)');
     expect(sql).not.toContain('unique(run_id,lane_id)');

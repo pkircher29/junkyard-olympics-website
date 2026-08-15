@@ -12,6 +12,7 @@
     if (parts[0] === 'new') return { name: 'new' };
     if (parts[0] === 'join') return { name: 'join', code: parts[1] || '' };
     if (parts[0] === 'games') return { name: 'games' };
+    if (parts[0] === 'photos') return { name: 'photos' };
     if (parts[0] === 'qr') return { name: 'qr' };
     if (parts[0] === 'hq') return { name: 'hq' };
     if (parts[0] === 't' && parts[1]) return { name: 'tournament', tid: parts[1] };
@@ -59,6 +60,7 @@
     }
     if (route.name === 'hq') {
       app.innerHTML = Views.hqPage();
+      if (Auth.isHost) void loadCannonAdmin();
       settle();
       return;
     }
@@ -72,6 +74,10 @@
     switch (route.name) {
       case 'games':      app.innerHTML = Views.gamesSignup(); break;
       case 'players':    app.innerHTML = Views.players(); break;
+      case 'photos':
+        app.innerHTML = Views.photoVault();
+        loadPhotoVault();
+        break;
       case 'new':
         app.innerHTML = Auth.isHost ? Views.newTournament()
           : '<section><div class="empty">🎛 Creating tournaments is a host job — grab Paul or Chris. You can still <a href="#/players">form your own team</a>.</div></section>';
@@ -86,6 +92,196 @@
     $$('.topnav a').forEach(a => a.classList.toggle('on', a.dataset.nav === route.name ||
       (a.dataset.nav === 'home' && ['tournament', 'match'].includes(route.name))));
     settle();
+  }
+
+  const EVENT_HQ_PREFIX = ['junkyardolympics.com', 'www.junkyardolympics.com'].includes(window.location.hostname) ? '/hq-api' : '';
+  async function eventHqRequest(path, options = {}) {
+    if (!path.startsWith('/api/')) throw new Error('Invalid Event HQ route.');
+    const headers = new Headers(options.headers || {});
+    headers.set('Authorization', `Bearer ${Auth.token}`);
+    const response = await fetch(`${EVENT_HQ_PREFIX}${path}`, { ...options, headers });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error?.message || data.error || 'Event HQ is unavailable.');
+    return data;
+  }
+
+  async function photoVaultRequest(path, options = {}) {
+    try {
+      return await eventHqRequest(path, options);
+    } catch (error) {
+      if (error.message === 'Event HQ is unavailable.') throw new Error('Junkyard Constellation is unavailable.');
+      throw error;
+    }
+  }
+
+  let cannonSnapshot = null;
+  let cannonScoring = null;
+  let cannonRefreshTimer = null;
+
+  function cannonTeam(snapshot, teamId) {
+    return (snapshot.teams || []).find(team => team.id === teamId) || { id: teamId, name: 'Unknown team' };
+  }
+
+  function cannonTeamScore(snapshot, runId, teamId) {
+    return (snapshot.cannonShots || []).filter(shot => shot.runId === runId && shot.teamId === teamId)
+      .reduce((sum, shot) => sum + Number(shot.points || 0), 0);
+  }
+
+  function cannonClock(teamRun) {
+    if (!teamRun?.deadlineAt || teamRun.state !== 'ACTIVE') return teamRun?.state || 'WAITING';
+    const remaining = Math.max(0, Math.ceil((new Date(teamRun.deadlineAt).getTime() - Date.now()) / 1000));
+    return `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
+  }
+
+  function renderCannonAdmin(snapshot, scoring) {
+    const section = $('#cannon-admin'), status = $('#cannon-status'), content = $('#cannon-admin-content'), connection = $('#hq-connection');
+    if (!section || !status || !content || !connection || !Auth.isHost) return;
+    connection.textContent = 'CONNECTED';
+    connection.className = 'chip chip-done';
+    const teams = (snapshot.teams || []).filter(team => team.eventId === 'cannon');
+    const cannonMembers = snapshot.teamMembers || [];
+    const teamReady = teams.length > 0 && teams.every(team => cannonMembers.filter(member => member.teamId === team.id && member.active).length === 2);
+    const run = [...(snapshot.cannonRuns || [])].reverse().find(candidate => candidate.eventId === 'cannon');
+
+    if (!run) {
+      section.dataset.cannonState = 'setup-required';
+      status.innerHTML = teamReady
+        ? '<b>SETUP REQUIRED</b> — teams are ready. Confirm the founder-approved v2 target table.'
+        : '<b>SETUP REQUIRED</b> — every Cannon entrant must be on an exact two-person team first.';
+      const enabled = scoring.targets.filter(target => target.enabled);
+      content.innerHTML = `
+        <div class="sec-head"><h3>Approved scoring v${scoring.version}</h3><span class="chip chip-rule">5:00 · UNLIMITED SHOTS</span></div>
+        <div class="statchips">${enabled.map(target => `<span class="pchip">${esc(target.label)} <b>${target.points.toLocaleString()}</b></span>`).join('')}</div>
+        <p class="muted small">Disabled for safety: ${scoring.targets.filter(target => !target.enabled).map(target => esc(target.label)).join(' · ')}</p>
+        <p class="muted small">Teams ready: ${teams.map(team => `${esc(team.name)} (${cannonMembers.filter(member => member.teamId === team.id && member.active).length}/2)`).join(' · ') || 'none'}</p>
+        <button class="btn btn-accent btn-lg" data-action="cannon-setup-save" ${teamReady ? '' : 'disabled'}>Confirm approved setup</button>`;
+      return;
+    }
+
+    const assignments = (snapshot.cannonAssignments || []).filter(row => row.runId === run.id);
+    const teamRuns = (snapshot.cannonTeamRuns || []).filter(row => row.runId === run.id);
+    const active = teamRuns.find(row => row.state === 'ACTIVE');
+    const targets = (snapshot.targets || []).filter(target => target.eventId === 'cannon');
+    section.dataset.cannonState = active ? 'active' : 'ready';
+    status.innerHTML = active
+      ? `<b>LIVE · ${esc(cannonTeam(snapshot, active.teamId).name)}</b> — ${cannonClock(active)} remaining. Lane is ARMED/CLEAR.`
+      : '<b>READY</b> — arm one team after the lane is physically clear.';
+
+    const teamCards = assignments.map(assignment => {
+      const team = cannonTeam(snapshot, assignment.teamId);
+      const teamRun = teamRuns.find(row => row.teamId === team.id);
+      const state = teamRun?.state || 'WAITING';
+      const canArm = !active && !['COMPLETE', 'SAFETY_STOPPED'].includes(state);
+      const canStart = !active && teamRun?.armedClear && state === 'PENDING';
+      return `<div class="card">
+        <div class="sec-head"><h3>${esc(team.name)}</h3><span class="chip chip-rule">${esc(state)}</span></div>
+        <p class="pts">${cannonTeamScore(snapshot, run.id, team.id).toLocaleString()} pts</p>
+        <div class="chiprow">
+          <button class="btn btn-ghost btn-sm" data-action="cannon-arm" data-run="${esc(run.id)}" data-team="${esc(team.id)}" ${canArm ? '' : 'disabled'}>ARMED / CLEAR</button>
+          <button class="btn btn-accent btn-sm" data-action="cannon-start" data-run="${esc(run.id)}" data-team="${esc(team.id)}" ${canStart ? '' : 'disabled'}>START 5:00</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    const targetButtons = targets.map(target => `<label class="check">
+      <input type="checkbox" class="cannon-carnage-target" value="${esc(target.id)}" ${active ? '' : 'disabled'}>
+      <button class="btn btn-ghost btn-sm" data-action="cannon-hit" data-team-run="${esc(active?.id || '')}" data-target="${esc(target.id)}" ${active ? '' : 'disabled'}>${esc(target.name)} · ${Number(target.points).toLocaleString()}</button>
+    </label>`).join('');
+
+    content.innerHTML = `
+      <div class="teamgrid">${teamCards || '<p class="muted">No Cannon teams are assigned.</p>'}</div>
+      <div class="card">
+        <div class="sec-head"><h3>Record one legal shot</h3><span class="chip ${active ? 'chip-live' : 'chip-rule'}">${active ? cannonClock(active) : 'WAITING'}</span></div>
+        <div class="checkgrid">${targetButtons}</div>
+        <div class="chiprow">
+          <button class="btn btn-accent" data-action="cannon-carnage" data-team-run="${esc(active?.id || '')}" ${active ? '' : 'disabled'}>Record checked targets + 1,000 Carnage</button>
+          <button class="btn btn-danger" data-action="cannon-safety-stop" data-team-run="${esc(active?.id || '')}" ${active ? '' : 'disabled'}>🛑 Safety Stop</button>
+        </div>
+        <p class="muted small">Tap a target button for a normal hit. For Carnage, check two or more separately labeled targets, then use the Carnage button.</p>
+      </div>`;
+  }
+
+  async function loadCannonAdmin() {
+    clearTimeout(cannonRefreshTimer);
+    if (!Auth.isHost || parseRoute().name !== 'hq') return;
+    try {
+      const [snapshot, scoring] = await Promise.all([
+        eventHqRequest('/api/state'),
+        cannonScoring ? Promise.resolve(cannonScoring) : fetch('data/cannon-scoring-v2.json', { cache: 'no-store' }).then(response => {
+          if (!response.ok) throw new Error('Approved Cannon scoring table is unavailable.');
+          return response.json();
+        }),
+      ]);
+      cannonSnapshot = snapshot;
+      cannonScoring = scoring;
+      renderCannonAdmin(snapshot, scoring);
+    } catch (error) {
+      const connection = $('#hq-connection'), status = $('#cannon-status');
+      if (connection) { connection.textContent = 'OFFLINE'; connection.className = 'chip chip-live'; }
+      if (status) status.innerHTML = `<b>EVENT HQ UNAVAILABLE</b> — ${esc(error.message)} All Cannon mutation controls remain locked.`;
+    }
+    cannonRefreshTimer = setTimeout(() => void loadCannonAdmin(), 1000);
+  }
+
+  async function cannonMutation(path, body, successMessage) {
+    if (!Auth.isHost) throw new Error('Hosts only.');
+    const result = await eventHqRequest(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+    toast(successMessage, 'ok');
+    await loadCannonAdmin();
+    return result;
+  }
+
+  function photoStateLabel(photo) {
+    return ({ PUBLISHED: '🏆 Approved for the screen', PENDING_REVIEW: '👀 Waiting for organizer review', PROCESSING: '⚙️ Preparing privately', REJECTED: 'Not selected for the screen', REMOVED: 'Removed', DELETED: 'Deleted' })[photo.state] || photo.state;
+  }
+
+  async function loadPhotoVault() {
+    const list = $('#vault-list');
+    if (!list) return;
+    try {
+      const data = await photoVaultRequest('/api/photos/mine');
+      const photos = data.photos || [];
+      list.innerHTML = photos.length ? photos.map(photo => `
+        <div class="vault-item">
+          <b>${esc(photoStateLabel(photo))}</b>
+          <span class="muted small">${esc(new Date(photo.createdAt).toLocaleString())}</span>
+          ${photo.removalRequestedAt ? '<span class="muted small">Removal requested</span>' : !['DELETED','REMOVED'].includes(photo.state) ? `<button class="btn btn-ghost btn-sm" data-action="photo-remove" data-id="${esc(photo.id)}">Request removal</button>` : ''}
+        </div>`).join('') : '<p class="muted small">Nothing here yet. Your first photo will appear here privately after upload.</p>';
+    } catch (error) {
+      list.innerHTML = `<p class="muted small">${esc(error.message)}</p>`;
+    }
+  }
+
+  async function submitPhotoVault() {
+    const file = $('#vault-photo')?.files?.[0];
+    const consent = $('#vault-consent')?.checked;
+    const button = $('#vault-submit');
+    const status = $('#vault-status');
+    if (!file || !consent || !button || !status) return;
+    button.disabled = true;
+    status.textContent = 'Sending privately to Junkyard Constellation…';
+    const body = new FormData();
+    body.append('photo', file);
+    body.append('names', $('#vault-names').value.trim());
+    body.append('consentAccepted', 'true');
+    body.append('consentVersion', 'junkyard-photo-consent-v1');
+    try {
+      await photoVaultRequest('/api/photos', { method: 'POST', body });
+      status.textContent = '✅ Safely received. It is private until an organizer approves it.';
+      $('#vault-photo').value = '';
+      $('#vault-consent').checked = false;
+      const preview = $('#vault-preview');
+      preview.hidden = true;
+      preview.removeAttribute('src');
+      await loadPhotoVault();
+    } catch (error) {
+      status.textContent = error.message;
+      button.disabled = false;
+    }
   }
 
   /* ---------- match flow ---------- */
@@ -143,6 +339,21 @@
     const act = el.dataset.action;
 
     switch (act) {
+      case 'photo-submit': {
+        void submitPhotoVault();
+        break;
+      }
+      case 'photo-refresh': {
+        void loadPhotoVault();
+        break;
+      }
+      case 'photo-remove': {
+        if (!confirm('Request removal of this photo from the screen and vault review?')) break;
+        void photoVaultRequest(`/api/photos/${encodeURIComponent(el.dataset.id)}/removal-request`, { method: 'POST' })
+          .then(() => { toast('Removal requested.', 'ok'); return loadPhotoVault(); })
+          .catch(error => toast(esc(error.message), 'error'));
+        break;
+      }
       /* players page */
       case 'add-players': {
         const input = $('#new-players');
@@ -305,13 +516,53 @@
         break;
       }
 
-      /* LAN control-tower bridge */
-      case 'hq-save': {
-        const v = $('#hq-url').value.trim().replace(/\/+$/, '');
-        if (v && !/^https?:\/\//.test(v)) { toast('URL needs to start with http:// or https://', 'error'); break; }
-        Store.setSetting('hqUrl', v);
-        toast(v ? '🎪 Event HQ linked — every synced device gets it.' : 'Event HQ link cleared.', 'ok');
-        location.hash = '#/';
+      /* verified Event HQ Cannon controls */
+      case 'cannon-setup-save': {
+        if (!Auth.isHost || !cannonScoring || !confirm('Confirm the approved v2 target table and lock Cannon setup for this event?')) break;
+        const targets = cannonScoring.targets.filter(target => target.enabled)
+          .map(target => ({ name: target.label, points: target.points, jackpot: !!target.jackpot }));
+        void cannonMutation('/api/cannon/setup', {
+          confirmed: true,
+          mode: 'timed',
+          durationSeconds: cannonScoring.durationSeconds,
+          carnageBonus: cannonScoring.carnageBonus,
+          targets,
+        }, '💥 Cannon setup confirmed.').catch(error => toast(esc(error.message), 'error'));
+        break;
+      }
+      case 'cannon-arm': {
+        if (!Auth.isHost || !confirm('Is the lane physically clear and ready to arm?')) break;
+        void cannonMutation(`/api/cannon/runs/${encodeURIComponent(el.dataset.run)}/teams/${encodeURIComponent(el.dataset.team)}/arm`, { clear: true }, 'Lane marked ARMED / CLEAR.')
+          .catch(error => toast(esc(error.message), 'error'));
+        break;
+      }
+      case 'cannon-start': {
+        if (!Auth.isHost || !confirm('Start this team’s single five-minute build-and-shoot window now?')) break;
+        void cannonMutation(`/api/cannon/runs/${encodeURIComponent(el.dataset.run)}/teams/${encodeURIComponent(el.dataset.team)}/start`, {}, '⏱ Five-minute Cannon run started!')
+          .catch(error => toast(esc(error.message), 'error'));
+        break;
+      }
+      case 'cannon-hit': {
+        if (!Auth.isHost || !el.dataset.teamRun || !el.dataset.target) break;
+        void cannonMutation(`/api/cannon/team-runs/${encodeURIComponent(el.dataset.teamRun)}/shots`, { targetIds: [el.dataset.target] }, 'Hit recorded.')
+          .catch(error => toast(esc(error.message), 'error'));
+        break;
+      }
+      case 'cannon-carnage': {
+        if (!Auth.isHost || !el.dataset.teamRun) break;
+        const targetIds = $$('.cannon-carnage-target:checked').map(input => input.value);
+        if (targetIds.length < 2) { toast('Carnage requires two or more separately labeled targets from one legal shot.', 'error'); break; }
+        if (!confirm(`Record ${targetIds.length} targets plus the 1,000-point Carnage bonus?`)) break;
+        void cannonMutation(`/api/cannon/team-runs/${encodeURIComponent(el.dataset.teamRun)}/shots`, { targetIds, carnage: true }, '💥 CARNAGE! +1,000 recorded.')
+          .catch(error => toast(esc(error.message), 'error'));
+        break;
+      }
+      case 'cannon-safety-stop': {
+        if (!Auth.isHost || !el.dataset.teamRun || !confirm('SAFETY STOP: freeze the active timer and reject all further shots?')) break;
+        const reason = prompt('Safety Stop reason (required):', 'Lane no longer clear')?.trim();
+        if (!reason) { toast('Safety Stop reason is required.', 'error'); break; }
+        void cannonMutation(`/api/cannon/team-runs/${encodeURIComponent(el.dataset.teamRun)}/safety-stop`, { reason }, '🛑 Safety Stop recorded. Timer and scoring are frozen.')
+          .catch(error => toast(esc(error.message), 'error'));
         break;
       }
 
@@ -438,6 +689,33 @@
 
   document.addEventListener('change', (e) => {
     const el = e.target;
+
+    if (el.id === 'vault-photo') {
+      const file = el.files?.[0];
+      const preview = $('#vault-preview');
+      const status = $('#vault-status');
+      if (!file) {
+        preview.hidden = true;
+        $('#vault-submit').disabled = true;
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        el.value = '';
+        preview.hidden = true;
+        status.textContent = 'That photo is over 8 MiB. Choose a smaller one.';
+        $('#vault-submit').disabled = true;
+        return;
+      }
+      preview.src = URL.createObjectURL(file);
+      preview.hidden = false;
+      status.textContent = 'Preview ready. Confirm consent to send it privately.';
+      $('#vault-submit').disabled = !$('#vault-consent').checked;
+      return;
+    }
+    if (el.id === 'vault-consent') {
+      $('#vault-submit').disabled = !(el.checked && $('#vault-photo')?.files?.[0]);
+      return;
+    }
 
     if (el.id === 'import-file') {
       const file = el.files[0];

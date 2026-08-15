@@ -3,6 +3,7 @@ import express, {
   type Request,
   type Response,
 } from "express";
+import multer from "multer";
 import {
   createHash,
   randomBytes,
@@ -12,6 +13,15 @@ import {
 import type { Db } from "./db.js";
 import { audit, backupDatabase } from "./db.js";
 import path from "node:path";
+import {
+  createPhotoStorage,
+  PHOTO_MAX_BYTES,
+  PhotoStorageError,
+  type NormalizedPhoto,
+} from "./photo-storage.js";
+
+export const PHOTO_CONSENT_VERSION = "junkyard-photo-consent-v1";
+export const PHOTO_CONSENT_TEXT = "I confirm that everyone identifiable in this photo agreed that it may appear publicly on the Junkyard Olympics screen and may be permanently archived in Constellation. I understand an organizer can remove it and I can request deletion.";
 
 const publicDir = path.resolve(process.cwd(), "public");
 const flairCategories = new Set([
@@ -51,20 +61,72 @@ const cleanName = (value: unknown, max = 256) =>
 const publicKind = (kind: string) => kind === "CANNON" ? "cannon" : "head-to-head";
 
 type AuthedRequest = Request & { participant?: any; organizer?: string };
+export interface PhotoProcessorInput {
+  id: string;
+  participantId: string;
+  contentHash: string;
+  absolutePath: string;
+  width: number;
+  height: number;
+}
+export interface ExternalPhotoIdentity {
+  subject: string;
+  displayName: string;
+}
+export interface ExternalOrganizerIdentity extends ExternalPhotoIdentity {
+  role: "host" | "guest";
+}
 export interface AppOptions {
   db: Db;
   organizerTokens: string[];
   now?: () => Date;
+  dataDir?: string;
+  photoProcessor?: (photo: Readonly<PhotoProcessorInput>) => Promise<void | "PENDING_REVIEW">;
+  photoIdentityVerifier?: (token: string) => Promise<ExternalPhotoIdentity | null>;
+  organizerIdentityVerifier?: (token: string) => Promise<ExternalOrganizerIdentity | null>;
+  photoStorageFactory?: typeof createPhotoStorage;
 }
 
 export function createApp({
   db,
   organizerTokens,
   now = () => new Date(),
+  dataDir = process.env.DATA_DIR ?? "/tmp/junkyard-olympics",
+  photoProcessor = async () => "PENDING_REVIEW",
+  photoIdentityVerifier,
+  organizerIdentityVerifier,
+  photoStorageFactory = createPhotoStorage,
 }: AppOptions) {
   if (organizerTokens.length < 2 || new Set(organizerTokens).size !== organizerTokens.length || organizerTokens.some((token) => token.length < 24))
     throw new Error("at least two distinct high-entropy organizer credentials are required");
   const app = express();
+  const photoStorage = photoStorageFactory(dataDir);
+  const stuckPhotos = db.prepare("SELECT id FROM photo_uploads WHERE state='PROCESSING'").all() as Array<{ id: string }>;
+  if (stuckPhotos.length) db.transaction(() => {
+    const reconciledAt = now().toISOString();
+    for (const photo of stuckPhotos) {
+      db.prepare("UPDATE photo_uploads SET state='PENDING_REVIEW',updated_at=?,moderation_summary='PROCESS_RESTART' WHERE id=? AND state='PROCESSING'").run(reconciledAt, photo.id);
+      db.prepare("INSERT INTO photo_moderation_events(id,photo_id,stage,rule_version,verdict,reason_codes,actor,created_at) VALUES(?,?,'STARTUP_RECONCILIATION','cp-p2','PENDING_REVIEW','[\"PROCESS_RESTART\"]','system',?)").run(randomUUID(), photo.id, reconciledAt);
+      audit(db, "system", "photo.processing.reconciled", "photo", photo.id);
+    }
+  })();
+  const photoMultipart = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: PHOTO_MAX_BYTES,
+      files: 1,
+      fields: 3,
+      parts: 5,
+      fieldNameSize: 40,
+      fieldSize: 512,
+    },
+  }).single("photo");
+  let photoProcessingTail: Promise<void> = Promise.resolve();
+  const runPhotoProcessor = (photo: Readonly<PhotoProcessorInput>) => {
+    const result = photoProcessingTail.then(() => photoProcessor(photo));
+    photoProcessingTail = result.then(() => undefined, () => undefined);
+    return result;
+  };
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32kb" }));
   // Read-only CORS: lets the cloud scoreboard (junkyardolympics.com) pull
@@ -154,7 +216,50 @@ export function createApp({
     req.participant = row;
     next();
   };
-  const organizer = (req: AuthedRequest, res: Response, next: NextFunction) => {
+  const photoParticipant = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+    const token = bearer(req);
+    const local: any = token
+      ? db.prepare("SELECT id,display_name AS displayName,active FROM participants WHERE token_hash=?").get(hash(token))
+      : undefined;
+    if (local) {
+      if (!local.active) return fail(res, 403, "inactive participant cannot upload photos", "PARTICIPANT_INACTIVE");
+      req.participant = local;
+      return next();
+    }
+    if (!token || !photoIdentityVerifier)
+      return fail(res, 401, "photo vault authorization required", "PHOTO_AUTH_REQUIRED");
+    try {
+      const verified = await photoIdentityVerifier(token);
+      const displayName = cleanName(verified?.displayName, 24);
+      if (!verified || !cleanName(verified.subject, 512) || !displayName)
+        return fail(res, 401, "photo vault authorization failed", "PHOTO_AUTH_FAILED");
+      const subjectHash = hash(verified.subject);
+      let row: any = db.prepare("SELECT p.id,p.display_name AS displayName,p.active FROM photo_external_identities x JOIN participants p ON p.id=x.participant_id WHERE x.provider='paul' AND x.subject_hash=?").get(subjectHash);
+      if (!row) {
+        const participantId = randomUUID();
+        const createdAt = now().toISOString();
+        tx(() => {
+          db.prepare("INSERT INTO participants(id,display_name,token_hash,active,created_at) VALUES(?,?,?,1,?)").run(participantId, displayName, hash(randomBytes(32).toString("hex")), createdAt);
+          db.prepare("INSERT INTO photo_external_identities(provider,subject_hash,participant_id,display_name,created_at,updated_at) VALUES('paul',?,?,?,?,?)").run(subjectHash, participantId, displayName, createdAt, createdAt);
+          audit(db, participantId, "photo.identity.linked", "photo_identity", participantId, { provider: "paul" });
+        });
+        row = { id: participantId, displayName, active: 1 };
+      } else if (row.displayName !== displayName) {
+        const updatedAt = now().toISOString();
+        tx(() => {
+          db.prepare("UPDATE participants SET display_name=? WHERE id=?").run(displayName, row.id);
+          db.prepare("UPDATE photo_external_identities SET display_name=?,updated_at=? WHERE provider='paul' AND subject_hash=?").run(displayName, updatedAt, subjectHash);
+        });
+        row.displayName = displayName;
+      }
+      if (!row.active) return fail(res, 403, "photo uploads are disabled for this account", "PHOTO_UPLOADER_INACTIVE");
+      req.participant = row;
+      next();
+    } catch {
+      return fail(res, 503, "photo vault sign-in verification is temporarily unavailable", "PHOTO_AUTH_UNAVAILABLE");
+    }
+  };
+  const organizer = async (req: AuthedRequest, res: Response, next: NextFunction) => {
     const token = bearer(req);
     const found =
       token &&
@@ -163,9 +268,83 @@ export function createApp({
         const b = Buffer.from(token);
         return a.length === b.length && timingSafeEqual(a, b);
       });
-    if (!found) return fail(res, 401, "organizer authorization required");
-    req.organizer = ["Chris", "Paul"][organizerTokens.indexOf(token!)] ?? `organizer:${organizerTokens.indexOf(token!) + 1}`;
+    if (found) {
+      req.organizer = ["Chris", "Paul"][organizerTokens.indexOf(token!)] ?? `organizer:${organizerTokens.indexOf(token!) + 1}`;
+      return next();
+    }
+    if (!token || !organizerIdentityVerifier) return fail(res, 401, "organizer authorization required");
+    try {
+      const verified = await organizerIdentityVerifier(token);
+      const subject = cleanName(verified?.subject, 512), displayName = cleanName(verified?.displayName, 24);
+      if (!verified || verified.role !== "host" || !subject || !displayName)
+        return fail(res, 401, "organizer authorization required");
+      req.organizer = displayName;
+      return next();
+    } catch {
+      return fail(res, 503, "organizer sign-in verification is temporarily unavailable", "ORGANIZER_AUTH_UNAVAILABLE");
+    }
+  };
+  const sameOrigin = (req: Request, res: Response, next: NextFunction) => {
+    if (req.header("sec-fetch-site") === "cross-site")
+      return fail(res, 403, "cross-origin photo requests are forbidden", "CROSS_ORIGIN_FORBIDDEN");
+    const origin = req.header("origin");
+    if (origin) {
+      try {
+        if (new URL(origin).host !== req.header("host"))
+          return fail(res, 403, "cross-origin photo requests are forbidden", "CROSS_ORIGIN_FORBIDDEN");
+      } catch {
+        return fail(res, 403, "invalid request origin", "CROSS_ORIGIN_FORBIDDEN");
+      }
+    }
     next();
+  };
+  const photoView = (row: any) => ({
+    id: row.id,
+    state: row.removal_requested_at && row.state !== "DELETED" ? "REMOVAL_REQUESTED" : row.state,
+    names: row.optional_names,
+    width: row.width,
+    height: row.height,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    removalRequestedAt: row.removal_requested_at,
+    publishedAt: row.published_at,
+    removedAt: row.removed_at,
+    deletedAt: row.deleted_at,
+  });
+  const photoSettings = () => {
+    const row: any = db.prepare("SELECT * FROM photo_wall_settings WHERE id=1").get();
+    return {
+      enabled: row.enabled === 1,
+      rotationIntervalSeconds: row.rotation_interval_seconds,
+      updatedActor: row.updated_actor,
+      updatedAt: row.updated_at,
+    };
+  };
+  const photoVersion = (row: any) => hash(`${row.content_hash}:${row.updated_at}`).slice(0, 20);
+  const organizerPhotoView = (row: any) => {
+    const event: any = db.prepare("SELECT reason_codes FROM photo_moderation_events WHERE photo_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1").get(row.id);
+    let reasonCodes: string[] = [];
+    try {
+      const parsed = JSON.parse(event?.reason_codes ?? "[]");
+      if (Array.isArray(parsed)) reasonCodes = parsed.filter((value): value is string => typeof value === "string").slice(0, 20);
+    } catch { /* malformed historical data is not exposed */ }
+    return {
+      ...photoView(row),
+      uploaderDisplayName: row.uploader_display_name,
+      consentTimestamp: row.consented_at,
+      reasonCodes,
+      title: row.plaque_title,
+      caption: row.plaque_caption,
+    };
+  };
+  const sendStoredPhoto = async (res: Response, relativePath: string) => {
+    try {
+      const bytes = await photoStorage.readStored(relativePath);
+      res.set({ "Content-Type": "image/webp", "Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff" });
+      return res.send(bytes);
+    } catch {
+      return fail(res, 404, "photo not found", "PHOTO_NOT_FOUND");
+    }
   };
   const members = (teamId: string) =>
     db
@@ -327,6 +506,223 @@ export function createApp({
         .all(req.participant.id),
     }),
   );
+  const parsePhoto = (req: Request, res: Response, next: NextFunction) =>
+    photoMultipart(req, res, (error: unknown) => {
+      if (error instanceof multer.MulterError) {
+        const tooLarge = (error as { code?: string }).code === "LIMIT_FILE_SIZE";
+        return fail(res, tooLarge ? 413 : 400, tooLarge ? "image exceeds the 8 MiB upload limit" : "invalid bounded multipart upload", tooLarge ? "PHOTO_TOO_LARGE" : "INVALID_MULTIPART");
+      }
+      if (error) return next(error);
+      next();
+    });
+  app.post(["/api/photos", "/api/photos/upload"], photoParticipant, sameOrigin, parsePhoto, async (req: AuthedRequest, res, next) => {
+    let normalized: NormalizedPhoto | undefined;
+    try {
+      if (!req.file) return fail(res, 400, "one photo file is required", "PHOTO_REQUIRED");
+      const acceptedConsent = req.body?.consentAccepted ?? req.body?.consent;
+      if (acceptedConsent !== "true" || req.body?.consentVersion !== PHOTO_CONSENT_VERSION)
+        return fail(res, 400, "the current photo consent must be explicitly accepted", "PHOTO_CONSENT_REQUIRED");
+      const allowedFields = new Set(["consent", "consentAccepted", "consentVersion", "names"]);
+      if (Object.keys(req.body ?? {}).some((key) => !allowedFields.has(key)))
+        return fail(res, 400, "unexpected photo upload field", "INVALID_PHOTO_FIELDS");
+      if (req.body?.consent !== undefined && req.body?.consentAccepted !== undefined && req.body.consent !== req.body.consentAccepted)
+        return fail(res, 400, "conflicting photo consent fields", "PHOTO_CONSENT_REQUIRED");
+      const rawNames = req.body?.names;
+      const names = rawNames === undefined || rawNames === "" ? null : typeof rawNames === "string" ? rawNames.trim() : null;
+      if (rawNames !== undefined && (!names || names.length > 120 || /[\u0000-\u001f\u007f<>\\]|\.\.|%2f|%5c/i.test(names)))
+        return fail(res, 400, "names must be at most 120 characters of plain text", "INVALID_PHOTO_NAMES");
+
+      const createdAt = now().toISOString();
+      if (db.prepare("SELECT 1 FROM photo_uploader_bans WHERE participant_id=?").get(req.participant.id))
+        return fail(res, 403, "photo uploads are disabled for this participant", "PHOTO_UPLOADER_BANNED");
+      const latest = db.prepare("SELECT created_at FROM photo_uploads WHERE participant_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1").get(req.participant.id) as { created_at: string } | undefined;
+      const count = (db.prepare("SELECT count(*) count FROM photo_uploads WHERE participant_id=?").get(req.participant.id) as { count: number }).count;
+      if (count >= 12)
+        return fail(res, 429, "event photo upload limit reached", "PHOTO_EVENT_LIMIT");
+      if (latest && now().getTime() - new Date(latest.created_at).getTime() < 60_000) {
+        res.set("Retry-After", String(Math.max(1, Math.ceil((60_000 - (now().getTime() - new Date(latest.created_at).getTime())) / 1000))));
+        return fail(res, 429, "wait before uploading another photo", "PHOTO_RATE_LIMITED");
+      }
+
+      normalized = await photoStorage.normalize(req.file.buffer);
+      const finalLatest = db.prepare("SELECT created_at FROM photo_uploads WHERE participant_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1").get(req.participant.id) as { created_at: string } | undefined;
+      const finalCount = (db.prepare("SELECT count(*) count FROM photo_uploads WHERE participant_id=?").get(req.participant.id) as { count: number }).count;
+      if (db.prepare("SELECT 1 FROM photo_uploader_bans WHERE participant_id=?").get(req.participant.id)) {
+        await photoStorage.remove(normalized.absolutePath);
+        normalized = undefined;
+        return fail(res, 403, "photo uploads are disabled for this participant", "PHOTO_UPLOADER_BANNED");
+      }
+      if (finalCount >= 12) {
+        await photoStorage.remove(normalized.absolutePath);
+        normalized = undefined;
+        return fail(res, 429, "event photo upload limit reached", "PHOTO_EVENT_LIMIT");
+      }
+      if (finalLatest && now().getTime() - new Date(finalLatest.created_at).getTime() < 60_000) {
+        await photoStorage.remove(normalized.absolutePath);
+        normalized = undefined;
+        res.set("Retry-After", String(Math.max(1, Math.ceil((60_000 - (now().getTime() - new Date(finalLatest.created_at).getTime())) / 1000))));
+        return fail(res, 429, "wait before uploading another photo", "PHOTO_RATE_LIMITED");
+      }
+      const id = randomUUID();
+      const correlationId = randomUUID();
+      try {
+        tx(() => {
+          db.prepare("INSERT INTO photo_uploads(id,participant_id,content_hash,state,optional_names,consent_version,consent_text,consented_at,request_correlation_id,width,height,normalized_path,created_at,updated_at) VALUES(?,?,?,'PROCESSING',?,?,?,?,?,?,?,?,?,?)")
+            .run(id, req.participant.id, normalized!.contentHash, names, PHOTO_CONSENT_VERSION, PHOTO_CONSENT_TEXT, createdAt, correlationId, normalized!.width, normalized!.height, normalized!.relativePath, createdAt, createdAt);
+          audit(db, req.participant.id, "photo.upload.accepted", "photo", id, { consentVersion: PHOTO_CONSENT_VERSION, consentText: PHOTO_CONSENT_TEXT, correlationId });
+        });
+      } catch (error: any) {
+        await photoStorage.remove(normalized.absolutePath);
+        normalized = undefined;
+        if (error?.code?.startsWith("SQLITE_CONSTRAINT"))
+          return fail(res, 409, "duplicate photo replay rejected", "PHOTO_DUPLICATE");
+        throw error;
+      }
+
+      try {
+        const outcome = await runPhotoProcessor(Object.freeze({ id, participantId: req.participant.id, contentHash: normalized.contentHash, absolutePath: normalized.absolutePath, width: normalized.width, height: normalized.height }));
+        if (outcome === "PENDING_REVIEW")
+          tx(() => {
+            db.prepare("UPDATE photo_uploads SET state='PENDING_REVIEW',updated_at=? WHERE id=? AND state='PROCESSING'").run(now().toISOString(), id);
+            db.prepare("INSERT INTO photo_moderation_events(id,photo_id,stage,rule_version,verdict,reason_codes,actor,created_at) VALUES(?,?,'PROCESSOR_HOOK','cp-p2','PENDING_REVIEW','[\"PROCESSOR_PENDING\"]','system',?)").run(randomUUID(), id, now().toISOString());
+          });
+      } catch {
+        tx(() => {
+          db.prepare("UPDATE photo_uploads SET state='PENDING_REVIEW',updated_at=? WHERE id=? AND state='PROCESSING'").run(now().toISOString(), id);
+          db.prepare("INSERT INTO photo_moderation_events(id,photo_id,stage,rule_version,verdict,reason_codes,actor,created_at) VALUES(?,?,'PROCESSOR_HOOK','cp-p2','PENDING_REVIEW','[\"PROCESSOR_ERROR\"]','system',?)").run(randomUUID(), id, now().toISOString());
+        });
+      }
+      const row = db.prepare("SELECT * FROM photo_uploads WHERE id=?").get(id);
+      res.status(201).json({ photo: photoView(row) });
+    } catch (error) {
+      if (normalized) await photoStorage.remove(normalized.absolutePath).catch(() => undefined);
+      if (error instanceof PhotoStorageError)
+        return fail(res, error.status, error.message, error.code);
+      next(error);
+    }
+  });
+  const participantPhotos = (req: AuthedRequest, res: Response) => {
+    const rows = db.prepare("SELECT * FROM photo_uploads WHERE participant_id=? ORDER BY created_at DESC,rowid DESC").all(req.participant.id) as any[];
+    res.json({ photos: rows.map(photoView) });
+  };
+  app.get(["/api/photos", "/api/photos/mine"], photoParticipant, participantPhotos);
+  app.get("/api/photos/:id", photoParticipant, (req: AuthedRequest, res) => {
+    const row = db.prepare("SELECT * FROM photo_uploads WHERE id=? AND participant_id=?").get(String(req.params.id), req.participant.id);
+    if (!row) return fail(res, 404, "photo not found", "PHOTO_NOT_FOUND");
+    res.json({ photo: photoView(row) });
+  });
+  app.post("/api/photos/:id/removal-request", photoParticipant, sameOrigin, (req: AuthedRequest, res) => {
+    const row: any = db.prepare("SELECT * FROM photo_uploads WHERE id=? AND participant_id=?").get(String(req.params.id), req.participant.id);
+    if (!row) return fail(res, 404, "photo not found", "PHOTO_NOT_FOUND");
+    if (row.state === "DELETED" || row.removal_requested_at)
+      return fail(res, 409, "photo removal request conflicts with its lifecycle", "INVALID_PHOTO_LIFECYCLE");
+    const changedAt = now().toISOString();
+    tx(() => {
+      db.prepare("UPDATE photo_uploads SET removal_requested_at=?,updated_at=? WHERE id=? AND removal_requested_at IS NULL").run(changedAt, changedAt, row.id);
+      audit(db, req.participant.id, "photo.removal.requested", "photo", row.id);
+    });
+    res.json({ photo: photoView(db.prepare("SELECT * FROM photo_uploads WHERE id=?").get(row.id)) });
+  });
+
+  const photoRows = () => db.prepare("SELECT u.*,p.display_name uploader_display_name FROM photo_uploads u JOIN participants p ON p.id=u.participant_id ORDER BY u.created_at DESC,u.rowid DESC").all() as any[];
+  app.get("/api/organizer/photos", organizer, (_req, res) => {
+    const rows = photoRows();
+    res.json({
+      settings: photoSettings(),
+      pending: rows.filter((row) => ["PROCESSING", "PENDING_REVIEW"].includes(row.state)).map(organizerPhotoView),
+      published: rows.filter((row) => row.state === "PUBLISHED").map(organizerPhotoView),
+      rejected: rows.filter((row) => row.state === "REJECTED").map(organizerPhotoView),
+      removed: rows.filter((row) => row.state === "REMOVED").map(organizerPhotoView),
+    });
+  });
+  app.get("/api/organizer/photos/:id/preview", organizer, async (req, res) => {
+    const row: any = db.prepare("SELECT normalized_path,plaque_path FROM photo_uploads WHERE id=? AND state<>'DELETED'").get(String(req.params.id));
+    if (!row) return fail(res, 404, "photo not found", "PHOTO_NOT_FOUND");
+    return sendStoredPhoto(res, row.plaque_path ?? row.normalized_path);
+  });
+  app.patch("/api/organizer/photo-wall", organizer, sameOrigin, (req: AuthedRequest, res) => {
+    if (typeof req.body?.enabled !== "boolean" || Object.keys(req.body ?? {}).some((key) => key !== "enabled"))
+      return fail(res, 400, "enabled must be a boolean", "INVALID_PHOTO_WALL_SETTINGS");
+    const changedAt = now().toISOString();
+    tx(() => {
+      db.prepare("UPDATE photo_wall_settings SET enabled=?,updated_actor=?,updated_at=? WHERE id=1").run(Number(req.body.enabled), req.organizer!, changedAt);
+      audit(db, req.organizer!, req.body.enabled ? "photo_wall.enable" : "photo_wall.disable", "photo_wall", "1");
+    });
+    res.json({ settings: photoSettings() });
+  });
+  app.post("/api/organizer/photos/:id/:action", organizer, sameOrigin, async (req: AuthedRequest, res, next) => {
+    const id = String(req.params.id), action = String(req.params.action);
+    const row: any = db.prepare("SELECT * FROM photo_uploads WHERE id=?").get(id);
+    if (!row) return fail(res, 404, "photo not found", "PHOTO_NOT_FOUND");
+    const changedAt = now().toISOString();
+    try {
+      if (action === "ban-uploader") {
+        tx(() => {
+          db.prepare("INSERT INTO photo_uploader_bans(participant_id,source_photo_id,actor,created_at) VALUES(?,?,?,?) ON CONFLICT(participant_id) DO NOTHING").run(row.participant_id, id, req.organizer!, changedAt);
+          db.prepare("UPDATE photo_uploads SET state='REMOVED',removed_at=COALESCE(removed_at,?),updated_at=? WHERE participant_id=? AND state='PUBLISHED'").run(changedAt, changedAt, row.participant_id);
+          db.prepare("UPDATE photo_uploads SET state='REJECTED',updated_at=? WHERE participant_id=? AND state IN ('PROCESSING','PENDING_REVIEW')").run(changedAt, row.participant_id);
+          audit(db, req.organizer!, "photo.uploader.ban", "participant", row.participant_id, { sourcePhotoId: id });
+        });
+        return res.json({ photo: organizerPhotoView(db.prepare("SELECT u.*,p.display_name uploader_display_name FROM photo_uploads u JOIN participants p ON p.id=u.participant_id WHERE u.id=?").get(id)) });
+      }
+      if (action === "delete") {
+        if (row.state !== "DELETED") {
+          const backupId = randomUUID(), destination = path.join(path.resolve(dataDir), "backups", `${backupId}.sqlite`);
+          await backupDatabase(db, destination);
+          tx(() => {
+            db.prepare("INSERT INTO backups(id,path) VALUES(?,?)").run(backupId, destination);
+            db.prepare("UPDATE photo_uploads SET state='DELETED',deleted_at=?,updated_at=?,constellation_export_state=CASE WHEN constellation_export_state='EXPORTED' THEN 'TOMBSTONED' ELSE constellation_export_state END WHERE id=?").run(changedAt, changedAt, id);
+            audit(db, req.organizer!, "photo.delete", "photo", id, { preDestructiveBackupId: backupId });
+          });
+        }
+        // The authoritative lifecycle transition happens before destructive I/O.
+        // If cleanup trips over its shoelaces, the photo is already inaccessible
+        // and a replay resumes deletion from these retained private paths.
+        await photoStorage.removeStored(row.normalized_path);
+        await photoStorage.removeStored(row.plaque_path);
+        tx(() => db.prepare("UPDATE photo_uploads SET normalized_path=?,plaque_path=NULL WHERE id=?").run(`photos/quarantine/${id}.webp`, id));
+        const deleted: any = db.prepare("SELECT u.*,p.display_name uploader_display_name FROM photo_uploads u JOIN participants p ON p.id=u.participant_id WHERE u.id=?").get(id);
+        return res.json({ photo: organizerPhotoView(deleted) });
+      }
+      const transitions: Record<string, { from: string[]; to: string; timestamp?: string }> = {
+        publish: { from: ["PENDING_REVIEW"], to: "PUBLISHED", timestamp: "published_at" },
+        reject: { from: ["PROCESSING", "PENDING_REVIEW"], to: "REJECTED" },
+        remove: { from: ["PUBLISHED"], to: "REMOVED", timestamp: "removed_at" },
+        restore: { from: ["REMOVED"], to: "PUBLISHED", timestamp: "published_at" },
+      };
+      const transition = transitions[action];
+      if (!transition) return fail(res, 404, "photo action not found", "PHOTO_ACTION_NOT_FOUND");
+      if (row.state !== transition.to && !transition.from.includes(row.state))
+        return fail(res, 409, "photo action conflicts with its lifecycle", "INVALID_PHOTO_LIFECYCLE");
+      if (row.state !== transition.to) tx(() => {
+        const timestampAssignment = transition.timestamp ? `,${transition.timestamp}=?` : "";
+        const parameters = transition.timestamp ? [transition.to, changedAt, changedAt, id] : [transition.to, changedAt, id];
+        db.prepare(`UPDATE photo_uploads SET state=?,updated_at=?${timestampAssignment} WHERE id=?`).run(...parameters);
+        db.prepare("INSERT INTO photo_moderation_events(id,photo_id,stage,rule_version,verdict,reason_codes,actor,created_at) VALUES(?,?,'ORGANIZER','manual-v1',?,'[]',?,?)").run(randomUUID(), id, transition.to, req.organizer!, changedAt);
+        audit(db, req.organizer!, `photo.${action}`, "photo", id);
+      });
+      const updated: any = db.prepare("SELECT u.*,p.display_name uploader_display_name FROM photo_uploads u JOIN participants p ON p.id=u.participant_id WHERE u.id=?").get(id);
+      return res.json({ photo: organizerPhotoView(updated) });
+    } catch (error) { next(error); }
+  });
+  app.get("/api/photo-wall", (_req, res) => {
+    const settings = photoSettings();
+    const rows = settings.enabled ? db.prepare("SELECT * FROM photo_uploads WHERE state='PUBLISHED' AND removal_requested_at IS NULL ORDER BY published_at DESC,rowid DESC LIMIT 50").all() as any[] : [];
+    res.set("Cache-Control", "no-store");
+    res.json({
+      enabled: settings.enabled,
+      version: hash(`${settings.updatedAt}:${rows.map((row) => `${row.id}:${row.updated_at}`).join(",")}`).slice(0, 20),
+      photos: rows.map((row) => {
+        const version = photoVersion(row);
+        return { id: row.id, version, imageUrl: `/api/photo-wall/photos/${encodeURIComponent(row.id)}/image?version=${version}`, title: row.plaque_title ?? "Junkyard Hall of Fame", caption: row.plaque_caption ?? "Certified scrap-yard greatness.", ...(row.optional_names ? { names: row.optional_names } : {}) };
+      }),
+    });
+  });
+  app.get("/api/photo-wall/photos/:id/image", async (req, res) => {
+    const row: any = db.prepare("SELECT u.*,s.enabled FROM photo_uploads u CROSS JOIN photo_wall_settings s WHERE u.id=? AND u.state='PUBLISHED' AND u.removal_requested_at IS NULL AND s.id=1 AND s.enabled=1").get(String(req.params.id));
+    if (!row || req.query.version !== photoVersion(row)) return fail(res, 404, "photo not found", "PHOTO_NOT_FOUND");
+    return sendStoredPhoto(res, row.plaque_path ?? row.normalized_path);
+  });
   app.patch("/api/me", participant, (req: AuthedRequest, res) => {
     const hasName = Object.hasOwn(req.body ?? {}, "displayName");
     const displayName = hasName
@@ -458,10 +854,13 @@ export function createApp({
         .prepare("SELECT id,match_id AS matchId,opened_by AS openedBy,created_at AS createdAt FROM disputes WHERE resolved_at IS NULL ORDER BY created_at")
         .all(),
       cannonRuns: db
-        .prepare("SELECT id,event_id AS eventId,created_at AS createdAt FROM cannon_runs ORDER BY created_at,rowid")
+        .prepare("SELECT id,event_id AS eventId,mode,duration_seconds AS durationSeconds,carnage_bonus AS carnageBonus,created_at AS createdAt FROM cannon_runs ORDER BY created_at,rowid")
         .all(),
       cannonAssignments: db
         .prepare("SELECT run_id AS runId,team_id AS teamId,lane_id AS laneId FROM cannon_run_assignments ORDER BY rowid")
+        .all(),
+      cannonTeamRuns: db
+        .prepare("SELECT id,run_id AS runId,team_id AS teamId,state,armed_clear AS armedClear,started_at AS startedAt,deadline_at AS deadlineAt,ended_at AS endedAt,stop_reason AS stopReason FROM cannon_team_runs ORDER BY created_at,rowid")
         .all(),
       targets: db
         .prepare("SELECT id,event_id AS eventId,name,points,jackpot FROM targets ORDER BY rowid")
@@ -792,6 +1191,11 @@ export function createApp({
     const assignedCount = (db.prepare("SELECT count(DISTINCT tm.participant_id) n FROM team_members tm JOIN teams t ON t.id=tm.team_id JOIN participants p ON p.id=tm.participant_id WHERE t.event_id='cannon' AND tm.active=1 AND p.active=1").get() as any).n;
     if (entryCount < 2 || assignedCount !== entryCount || teams.length < 1)
       return fail(res, 409, "form Cannon teams for every active entrant before setup", "CANNON_TEAMS_REQUIRED");
+    const mode = req.body?.mode === "timed" ? "timed" : "quota";
+    const durationSeconds = mode === "timed" ? req.body?.durationSeconds : 300;
+    const carnageBonus = mode === "timed" ? req.body?.carnageBonus : 50;
+    if (durationSeconds !== 300 || !Number.isSafeInteger(carnageBonus) || carnageBonus < 0)
+      return fail(res, 400, "invalid Cannon timed-run configuration", "INVALID_CANNON_CONFIG");
     const runId = randomUUID();
     const assignments = teams.map((team, index) => ({ teamId: team.id, laneId: index % 2 === 0 ? "Lane 1" : "Lane 2" }));
     const createdTargets = tx(() => {
@@ -800,7 +1204,8 @@ export function createApp({
         db.prepare("INSERT INTO targets(id,event_id,name,points,jackpot) VALUES(?,?,?,?,?)").run(id, "cannon", target.name, target.points, Number(target.jackpot));
         return { id, ...target };
       });
-      db.prepare("INSERT INTO cannon_runs(id,event_id) VALUES(?,?)").run(runId, "cannon");
+      db.prepare("INSERT INTO cannon_runs(id,event_id,mode,duration_seconds,carnage_bonus) VALUES(?,?,?,?,?)")
+        .run(runId, "cannon", mode, durationSeconds, carnageBonus);
       for (const assignment of assignments)
         db.prepare("INSERT INTO cannon_run_assignments(run_id,team_id,lane_id) VALUES(?,?,?)").run(runId, assignment.teamId, assignment.laneId);
       audit(db, req.organizer!, "cannon.setup", "cannon_run", runId, { teamCount: teams.length, targetCount: made.length, lanes: ["Lane 1", "Lane 2"] });
@@ -841,10 +1246,97 @@ export function createApp({
     res.status(201).json({ run: { id, eventId, assignments } });
   });
 
+  const cannonTeamRunView = (id: string) => {
+    const row: any = db.prepare(`SELECT id,run_id runId,team_id teamId,state,armed_clear armedClear,
+      duration_seconds durationSeconds,started_at startedAt,deadline_at deadlineAt,ended_at endedAt,stop_reason stopReason
+      FROM cannon_team_runs WHERE id=?`).get(id);
+    return row ? { ...row, armedClear: !!row.armedClear } : null;
+  };
+  const expireTimedCannonRun = (row: any) => {
+    if (row?.state === "ACTIVE" && row.deadlineAt && row.deadlineAt <= now().toISOString()) {
+      db.prepare("UPDATE cannon_team_runs SET state='COMPLETE',armed_clear=0,ended_at=? WHERE id=? AND state='ACTIVE'").run(row.deadlineAt, row.id);
+      return cannonTeamRunView(row.id);
+    }
+    return row;
+  };
+  app.post("/api/cannon/runs/:runId/teams/:teamId/arm", organizer, (req: AuthedRequest, res) => {
+    const runId = String(req.params.runId), teamId = String(req.params.teamId);
+    const assignment = db.prepare("SELECT 1 FROM cannon_run_assignments WHERE run_id=? AND team_id=?").get(runId, teamId);
+    if (!assignment) return fail(res, 404, "Cannon assignment not found", "CANNON_ASSIGNMENT_NOT_FOUND");
+    if (members(teamId).length !== 2) return fail(res, 409, "timed Cannon requires exactly two active team members", "CANNON_TEAM_SIZE_INVALID");
+    const clear = req.body?.clear === true;
+    const existing: any = db.prepare("SELECT id,state FROM cannon_team_runs WHERE run_id=? AND team_id=?").get(runId, teamId);
+    if (existing && existing.state !== "PENDING") return fail(res, 409, "team run can no longer be armed", "CANNON_TEAM_RUN_LOCKED");
+    const id = existing?.id ?? randomUUID();
+    tx(() => {
+      db.prepare(`INSERT INTO cannon_team_runs(id,run_id,team_id,armed_clear) VALUES(?,?,?,?)
+        ON CONFLICT(run_id,team_id) DO UPDATE SET armed_clear=excluded.armed_clear`).run(id, runId, teamId, Number(clear));
+      audit(db, req.organizer!, clear ? "cannon.team_run.arm" : "cannon.team_run.disarm", "cannon_team_run", id, { runId, teamId });
+    });
+    res.json({ teamRun: cannonTeamRunView(id) });
+  });
+  app.post("/api/cannon/runs/:runId/teams/:teamId/start", organizer, (req: AuthedRequest, res) => {
+    const runId = String(req.params.runId), teamId = String(req.params.teamId);
+    const existing: any = db.prepare(`SELECT id,run_id runId,team_id teamId,state,armed_clear armedClear,
+      deadline_at deadlineAt FROM cannon_team_runs WHERE run_id=? AND team_id=?`).get(runId, teamId);
+    if (!existing?.armedClear) return fail(res, 409, "lane must be marked ARMED/CLEAR", "CANNON_LANE_NOT_ARMED");
+    if (existing.state !== "PENDING") return fail(res, 409, "team run already started", "CANNON_TEAM_RUN_LOCKED");
+    const active: any = db.prepare("SELECT id,deadline_at deadlineAt,state FROM cannon_team_runs WHERE run_id=? AND state='ACTIVE'").get(runId);
+    const refreshed = expireTimedCannonRun(active);
+    if (refreshed?.state === "ACTIVE") return fail(res, 409, "another Cannon team is already active", "CANNON_TEAM_ALREADY_ACTIVE");
+    const startedAt = now().toISOString(), deadlineAt = new Date(now().getTime() + 300_000).toISOString();
+    tx(() => {
+      db.prepare("UPDATE cannon_team_runs SET state='ACTIVE',started_at=?,deadline_at=? WHERE id=?").run(startedAt, deadlineAt, existing.id);
+      audit(db, req.organizer!, "cannon.team_run.start", "cannon_team_run", existing.id, { runId, teamId, durationSeconds: 300 });
+    });
+    res.status(201).json({ teamRun: cannonTeamRunView(existing.id) });
+  });
+  app.post("/api/cannon/team-runs/:teamRunId/safety-stop", organizer, (req: AuthedRequest, res) => {
+    const id = String(req.params.teamRunId), reason = cleanName(req.body?.reason) || "safety stop";
+    const row: any = db.prepare("SELECT state FROM cannon_team_runs WHERE id=?").get(id);
+    if (!row) return fail(res, 404, "Cannon team run not found", "CANNON_TEAM_RUN_NOT_FOUND");
+    if (row.state !== "ACTIVE") return fail(res, 409, "Cannon team run is not active", "CANNON_RUN_NOT_ACTIVE");
+    const endedAt = now().toISOString();
+    tx(() => {
+      db.prepare("UPDATE cannon_team_runs SET state='SAFETY_STOPPED',armed_clear=0,ended_at=?,stop_reason=? WHERE id=?").run(endedAt, reason, id);
+      audit(db, req.organizer!, "cannon.team_run.safety_stop", "cannon_team_run", id, { reason });
+    });
+    res.json({ teamRun: cannonTeamRunView(id) });
+  });
+  app.post("/api/cannon/team-runs/:teamRunId/shots", organizer, (req: AuthedRequest, res) => {
+    const teamRunId = String(req.params.teamRunId);
+    let teamRun: any = db.prepare(`SELECT tr.id,tr.run_id runId,tr.team_id teamId,tr.state,tr.deadline_at deadlineAt,a.lane_id laneId,r.event_id eventId,r.carnage_bonus carnageBonus
+      FROM cannon_team_runs tr JOIN cannon_run_assignments a ON a.run_id=tr.run_id AND a.team_id=tr.team_id
+      JOIN cannon_runs r ON r.id=tr.run_id WHERE tr.id=?`).get(teamRunId);
+    if (!teamRun) return fail(res, 404, "Cannon team run not found", "CANNON_TEAM_RUN_NOT_FOUND");
+    teamRun = expireTimedCannonRun(teamRun);
+    if (teamRun?.state === "COMPLETE") return fail(res, 409, "five-minute Cannon window has expired", "CANNON_RUN_EXPIRED");
+    if (teamRun?.state !== "ACTIVE") return fail(res, 409, "Cannon team run is not active", "CANNON_RUN_NOT_ACTIVE");
+    const targetIds: unknown[] = Array.isArray(req.body?.targetIds) ? [...new Set(req.body.targetIds)] : [];
+    if (targetIds.length > 20 || targetIds.some(id => typeof id !== "string")) return fail(res, 400, "invalid target list", "INVALID_TARGET");
+    const targets: any[] = targetIds.length ? db.prepare(`SELECT * FROM targets WHERE event_id=? AND id IN (${targetIds.map(() => "?").join(",")})`).all(teamRun.eventId, ...targetIds) : [];
+    if (targets.length !== targetIds.length) return fail(res, 400, "unknown target", "INVALID_TARGET");
+    const carnage = req.body?.carnage === true;
+    if (carnage && targetIds.length < 2) return fail(res, 400, "Carnage requires two or more separately labeled targets", "INVALID_CARNAGE");
+    const roster = members(teamRun.teamId) as any[], requestedShooterId = cleanName(req.body?.shooterId);
+    const shooter = requestedShooterId ? roster.find(member => member.id === requestedShooterId) : roster[0];
+    if (!shooter) return fail(res, 409, "active Cannon shooter not found", "CANNON_SHOOTER_REQUIRED");
+    const sequence = (db.prepare("SELECT count(*) n FROM cannon_shots WHERE team_run_id=?").get(teamRunId) as any).n + 1;
+    const total = targets.reduce((sum, target) => sum + target.points, 0) + (carnage ? teamRun.carnageBonus : 0), id = randomUUID();
+    tx(() => {
+      db.prepare("INSERT INTO cannon_shots(id,event_id,team_id,shooter_id,practice,carnage,points,run_id,lane_id,kind,sequence,team_run_id) VALUES(?,?,?,?,0,?,?,?,?,?,?,?)")
+        .run(id, teamRun.eventId, teamRun.teamId, shooter.id, Number(carnage), total, teamRun.runId, teamRun.laneId, "timed", sequence, teamRunId);
+      for (const target of targets) db.prepare("INSERT INTO cannon_shot_targets(shot_id,target_id,points) VALUES(?,?,?)").run(id, target.id, target.points);
+      audit(db, req.organizer!, "cannon.timed_shot", "shot", id, { teamRunId, sequence, shooterId: shooter.id });
+    });
+    res.status(201).json({ shot: { ...cannonShotView(id), sequence, teamRunId } });
+  });
+
   const cannonShotView = (id: string) => {
-    const shot: any = db.prepare("SELECT id,run_id runId,team_id teamId,lane_id laneId,kind,sequence,points total,carnage FROM cannon_shots WHERE id=?").get(id);
+    const shot: any = db.prepare(`SELECT s.id,s.run_id runId,s.team_id teamId,s.lane_id laneId,s.kind,s.sequence,s.points total,s.carnage,
+      COALESCE(r.carnage_bonus,50) configuredCarnageBonus FROM cannon_shots s LEFT JOIN cannon_runs r ON r.id=s.run_id WHERE s.id=?`).get(id);
     const targetPoints = (db.prepare("SELECT COALESCE(sum(points),0) points FROM cannon_shot_targets WHERE shot_id=?").get(id) as any).points;
-    return { ...shot, targetPoints, carnageBonus: shot.carnage ? 50 : 0, organizerConfirmed: !!shot.carnage };
+    return { ...shot, targetPoints, carnageBonus: shot.carnage ? shot.configuredCarnageBonus : 0, organizerConfirmed: !!shot.carnage };
   };
   app.post("/api/cannon/runs/:runId/shots", organizer, (req: AuthedRequest, res) => {
     const runId = String(req.params.runId), teamId = cleanName(req.body?.teamId), laneId = cleanName(req.body?.laneId);

@@ -5,9 +5,19 @@ let operational = false;
 let api;
 let getOrganizerToken;
 let state = null;
+let photoOperational = false;
+let photoModeration = { settings: { enabled: false }, pending: [], published: [], removed: [] };
+let photoPreviewUrls = [];
+
+function lockPhotoControls() {
+  document.querySelectorAll('#photo-moderation button, #photo-moderation input').forEach(control => {
+    control.disabled = !(authorized && operational && photoOperational);
+  });
+}
 
 export function lockMutations(reason = '') {
   document.querySelectorAll(mutationSelector).forEach(control => { control.disabled = !(authorized && operational); });
+  lockPhotoControls();
   if (reason) q('#auth-status').textContent = reason;
 }
 
@@ -58,6 +68,53 @@ function renderCannonSetup() {
 function renderTable(headers, rows) {
   if (!rows.length) return '<p class="meta">No records.</p>';
   return `<table><thead><tr>${headers.map(x => `<th>${escapeHtml(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map((x, index) => `<td data-label="${escapeHtml(headers[index])}">${escapeHtml(x)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+
+const photoActions = {
+  pending: [['publish', 'Publish'], ['reject', 'Reject'], ['delete', 'Delete'], ['ban-uploader', 'Ban uploader']],
+  published: [['remove', 'Remove'], ['delete', 'Delete'], ['ban-uploader', 'Ban uploader']],
+  removed: [['restore', 'Restore'], ['delete', 'Delete'], ['ban-uploader', 'Ban uploader']],
+};
+
+function renderPhotoCard(photo, list) {
+  const details = [photo.uploaderDisplayName, photo.names, photo.consentTimestamp, ...(photo.reasonCodes ?? [])].filter(Boolean).map(escapeHtml).join(' · ');
+  const preview = photo.previewObjectUrl ? `<img src="${escapeHtml(photo.previewObjectUrl)}" alt="Organizer preview for photo ${escapeHtml(photo.id)}">` : '<div class="warning">Preview unavailable.</div>';
+  const controls = photoActions[list].map(([action, label]) => `<button type="button" class="btn small ${action === 'delete' ? 'danger' : ''} photo-action" data-mutation data-photo="${escapeHtml(photo.id)}" data-photo-action="${action}">${label}</button>`).join('');
+  return `<article class="photo-moderation-card">${preview}<b>${escapeHtml(photo.title ?? photo.state ?? 'Photo')}</b><p class="meta">${details || 'No optional names or review details.'}</p><div class="btn-row">${controls}</div></article>`;
+}
+
+function renderPhotoModeration() {
+  q('#photo-wall-enabled').checked = photoModeration.settings?.enabled === true;
+  for (const list of ['pending', 'published', 'removed']) {
+    const photos = photoModeration[list] ?? [];
+    q(`#photos-${list}`).innerHTML = photos.length ? photos.map(photo => renderPhotoCard(photo, list)).join('') : '<p class="meta">No records.</p>';
+  }
+  q('#photo-moderation-status').textContent = photoOperational
+    ? `Junkyard Constellation ${photoModeration.settings?.enabled ? 'live' : 'stopped'} · ${(photoModeration.pending ?? []).length} awaiting approval.`
+    : 'Junkyard Constellation moderation is unavailable or authorization is missing. Controls remain locked.';
+  lockPhotoControls();
+}
+
+async function refreshPhotos() {
+  photoPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+  photoPreviewUrls = [];
+  if (!authorized || api.demo) { photoOperational = false; renderPhotoModeration(); return; }
+  try {
+    photoModeration = await api.getPhotoModeration();
+    const all = ['pending', 'published', 'removed'].flatMap(list => photoModeration[list] ?? []);
+    await Promise.all(all.map(async photo => {
+      try {
+        const url = URL.createObjectURL(await api.getOrganizerPhotoPreview(photo.id));
+        photo.previewObjectUrl = url;
+        photoPreviewUrls.push(url);
+      } catch { photo.previewObjectUrl = ''; }
+    }));
+    photoOperational = true;
+  } catch {
+    photoOperational = false;
+    photoModeration = { settings: { enabled: false }, pending: [], published: [], removed: [] };
+  }
+  renderPhotoModeration();
 }
 
 function render() {
@@ -125,6 +182,7 @@ try {
   }
   lockMutations();
   await refresh();
+  await refreshPhotos();
   status('Authoritative state loaded from /api/state.');
 } catch (error) {
   operational = false;
@@ -221,7 +279,6 @@ q('#bracket-control-form').addEventListener('submit', async event => {
 q('#backup').addEventListener('click', async () => { if (!(authorized && operational) || api.demo) return; try { const result = await api.organizerRequest('/api/admin/backups', { method: 'POST', body: {} }); status(`Backup created: ${result.backup.id}`); } catch (error) { status(error.message, true); } });
 q('#export-json').addEventListener('click', () => authorized && operational && !api.demo && download('/api/admin/export.json', 'junkyard-export.json').then(() => status('JSON export downloaded.')).catch(error => status(error.message, true)));
 q('#export-csv').addEventListener('click', () => authorized && operational && !api.demo && download('/api/admin/export.csv', 'junkyard-participants.csv').then(() => status('CSV export downloaded.')).catch(error => status(error.message, true)));
-
 q('#add-cannon-target').addEventListener('click', () => addTargetRow());
 q('#cannon-target-rows').addEventListener('click', event => {
   const button = event.target.closest('.remove-target');
@@ -265,3 +322,20 @@ q('#cannon-setup-form').addEventListener('submit', async event => {
 });
 
 if (!q('#cannon-target-rows').children.length) addTargetRow();
+q('#photo-wall-enabled').addEventListener('change', async event => {
+  if (!(authorized && operational && photoOperational) || api.demo) return;
+  const enabled = event.target.checked;
+  if (!enabled && !confirm('Stop Junkyard Constellation immediately? Approved photos will be hidden, not deleted.')) { event.target.checked = true; return; }
+  try { await api.setPhotoWallEnabled(enabled); status(`Junkyard Constellation ${enabled ? 'live' : 'stopped'}.`); await refreshPhotos(); }
+  catch (error) { event.target.checked = !enabled; status(error.message, true); }
+});
+q('#photo-moderation').addEventListener('click', async event => {
+  const button = event.target.closest('.photo-action');
+  if (!button || !(authorized && operational && photoOperational) || api.demo) return;
+  const action = button.dataset.photoAction;
+  const destructive = ['reject', 'remove', 'delete', 'ban-uploader'].includes(action);
+  if (destructive && !confirm(action === 'delete' ? 'Permanently delete this photo and its pixels?' : action === 'ban-uploader' ? 'Ban this uploader and block future uploads?' : action === 'reject' ? 'Reject this photo?' : 'Remove this photo from public display?')) return;
+  try { await api.moderatePhoto(button.dataset.photo, action); status(`Photo action complete: ${action}.`); await refreshPhotos(); }
+  catch (error) { status(error.message, true); }
+});
+window.addEventListener('pagehide', () => photoPreviewUrls.forEach(url => URL.revokeObjectURL(url)));

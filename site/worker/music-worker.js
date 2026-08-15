@@ -128,6 +128,18 @@ function slimTrack(t) {
   };
 }
 
+// Public TV projection: retain display-only metadata and deliberately omit
+// Spotify IDs/URIs plus every request and requester identifier.
+function publicTrack(t) {
+  return {
+    name: t.name || '',
+    artists: (t.artists || []).map(a => ({ name: a.name || '' })),
+    album: t.album || '',
+    art: t.art || '',
+    duration_ms: t.duration_ms || 0,
+  };
+}
+
 function slimAlbum(a) {
   return {
     id: a.id, name: a.name,
@@ -311,6 +323,38 @@ async function api(req, env, url, p) {
       }
     }
     return json({ token, user: { id: user.id, name: user.name, role: user.role || 'guest' } });
+  }
+
+  /* ----- authenticated session projection ----- */
+
+  if (p === '/api/session') {
+    if (req.method !== 'GET') {
+      return new Response(JSON.stringify({ error: 'method not allowed' }), {
+        status: 405,
+        headers: { 'Content-Type': 'application/json', Allow: 'GET' },
+      });
+    }
+    const sessionUser = await getUser(env, req);
+    if (!sessionUser) return json({ error: 'not logged in' }, 401);
+    return json({ user: { id: sessionUser.id, name: sessionUser.name, role: sessionUser.role || 'guest' } });
+  }
+
+  /* ----- unauthenticated TV queue ----- */
+
+  // This exact public path is intentionally handled before the general auth
+  // gate. It exposes only ordered, display-safe track projections.
+  if (p === '/api/public/queue') {
+    if (req.method !== 'GET') {
+      return new Response(JSON.stringify({ error: 'method not allowed' }), {
+        status: 405,
+        headers: { 'Content-Type': 'application/json', Allow: 'GET', ...CORS },
+      });
+    }
+    const { order } = await queueOrder(env);
+    return json({
+      now_playing: c.np_track ? { pos: 0, track: publicTrack(JSON.parse(c.np_track)) } : null,
+      up_next: order.map((item, index) => ({ pos: index + 1, track: publicTrack(item.track) })),
+    });
   }
 
   const user = await getUser(env, req);

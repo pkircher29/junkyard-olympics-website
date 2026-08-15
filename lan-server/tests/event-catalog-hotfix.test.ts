@@ -39,7 +39,7 @@ const expectedStations = [
 
 describe('confirmed event and station catalog', () => {
   it('migrates to the exact eleven-activity and eight-station catalog', async () => {
-    expect(db.pragma('user_version', { simple: true })).toBe(8);
+    expect(db.pragma('user_version', { simple: true })).toBe(11);
     const state = (await request(app).get('/api/state')).body;
     expect(state.events.map((event: any) => [event.id, event.name, event.playMode])).toEqual(expectedEvents);
     expect(state.stations.map((station: any) => [station.id, station.name, station.eventId])).toEqual(expectedStations);

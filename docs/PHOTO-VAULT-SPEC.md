@@ -1,4 +1,4 @@
-# Junkyard Photo Vault — Canonical Hosted + LAN Specification
+# Junkyard Constellation — Canonical Hosted + LAN Specification
 
 **Status:** Founder-approved for strict-TDD implementation (2026-08-14)
 **Canonical base:** `pkircher29/junkyard-olympics-website@051482a54ddd7672fb3cc3635f8ced1428e37d9d`
@@ -8,13 +8,13 @@
 
 ## 1. Purpose
 
-Let participants already signed into Paul's canonical hosted app upload event photos to Chris's local photo vault, process them locally into safe, funny “Junkyard Hall of Fame” plaques, and display approved photos on the existing field TV while the official broadcast is idle.
+Let participants already signed into Paul's canonical hosted app upload event photos to Chris's local photo vault, process them locally into safe, funny “Junkyard Hall of Fame” plaques, and display approved photos as the participant-facing **Junkyard Constellation** panel in the field-TV carousel.
 
 Paul's cloud bracket/music stack remains canonical for the party. The independently approved LAN tournament release remains the rollback runtime. This feature is developed and reviewed on `feat/photo-vault-merge` and may be rejected without affecting registration, scoring, music, organizer controls, TV calls, ONN, printing, or paper fallback.
 
 ## 1.1 Canonical dual-runtime architecture
 
-- `site/` remains Paul's hosted bracket, music, authentication, and multi-device sync experience.
+- `site/` remains Paul's authoritative hosted tournament, bracket, team, scoring, music, authentication, and multi-device sync experience. Its tournament rules and workflow are accepted as-is. This feature may add a visually native Photo Vault surface and polish, but must not import LAN tournament rules or alter Paul's bracket/scoring behavior. Paul's music player, Spotify integration, queue, audio routing, and worker behavior are also outside this feature's modification scope.
 - `lan-server/` remains the authoritative local photo vault, moderation engine, local AI processor, TV reel source, backup target, and Constellation-export producer.
 - The hosted app adds a native `#/photos` route using the existing `Auth` session. It never asks for a second display name or party password.
 - The music worker adds an authenticated `GET /api/session` endpoint returning only `{ user: { id, name, role } }` for a valid bearer. It never returns the bearer itself.
@@ -25,6 +25,8 @@ Paul's cloud bracket/music stack remains canonical for the party. The independen
 - Photo pixels never enter D1, bracket room sync, localStorage, GitHub, Spotify, or Cloudflare logs. Only the browser-to-vault multipart request carries image bytes.
 - The hosted route may target an HTTPS public Event HQ relay or same-origin proxy. Browsers served over HTTPS must never be instructed to upload to an HTTP mixed-content URL.
 - If the cloud verifier or Event HQ path is unavailable, the hosted app reports that the vault is temporarily unavailable. Tournament and music flows continue unchanged.
+- **All participant and organizer interaction lives on the Junkyard Olympics website.** The LAN/Event HQ process is an API, storage, processing, and recovery backend—not a separate user-facing product. Website participant routes own upload/status surfaces; the organizer-only website admin dashboard owns rehearsal, Cannon control, and moderation. Cannon setup/scoring/alert controls never appear in participant navigation.
+- Full-event rehearsal is an organizer-only website mode backed by an isolated disposable database. Every synthetic identity and result is visibly labeled `SIMULATION`; rehearsal requests can never target the live event database.
 
 ## 2. Founder decisions
 
@@ -32,9 +34,12 @@ Paul's cloud bracket/music stack remains canonical for the party. The independen
 2. Uncertain, failed, or offline screening stays private for organizer review.
 3. Upload consent covers public Junkyard display and later permanent Constellation archival.
 4. The uploader must confirm every identifiable person pictured agreed to both uses.
-5. The existing field TV shows the reel only while idle; calls and results always interrupt it.
+5. The existing field TV includes approved photos in its normal 16-second carousel. Offline/recovery, sound-unlock prompts, called matches, active matches, and recent results always interrupt it; ordinary standings and queued-event panels do not suppress it.
 6. AI writes a funny title and plaque caption. Names appear only when the uploader explicitly types them.
 7. Production Constellation is not modified during this build. The app produces a reviewed export package for a later adapter/import.
+8. Junkyard Cannon runs one two-person team at a time. A server-authoritative five-minute timer begins before building and covers the entire build-and-shoot window. The team may use one or two launchers and its chosen barrel attachments, with no software attachment-approval gate. Shots are unlimited during the active window; every legal hit adds to the team total, and scoring locks at expiration.
+9. Cannon has no separate practice-shot phase or per-person shot quota. Admin lane ARMED/CLEAR remains required; Safety Stop freezes timer and scoring immediately.
+10. Cannon scoring v2 uses a compact bell-curve ladder with most targets clustered in the middle. The Tiny Golden Washer is the rare maximum at 10,000 points. Carnage is +1,000 for one legal shot moving two or more separately labeled targets. T13 and T19 remain disabled by safety/calibration policy.
 
 ## 3. Event-safe boundaries
 
@@ -170,14 +175,13 @@ TV priority is fixed:
 
 1. Offline/recovery and operator-required sound prompt.
 2. Called match and countdown.
-3. Active match/result/official standings announcement.
-4. Queue/field status where operationally necessary.
-5. Approved photo-wall reel.
-6. Branded idle state.
+3. Active match and recent-result announcement.
+4. Normal 16-second carousel: official standings, queue/field status, roster, music state, approved Junkyard Constellation photos, website QR, and Wi-Fi QR.
+5. Branded idle state when no normal carousel panel has data.
 
-The reel never delays, suppresses, overlays, or speaks over official calls/results. When an authoritative state arrives, the photo disappears on the next immediate refresh and official audio behavior remains unchanged. Removed/deleted photos are evicted by id and content version.
+The reel never delays, suppresses, overlays, or speaks over urgent official calls/results. When an urgent authoritative state arrives, the photo disappears on the next immediate refresh and official audio behavior remains unchanged. Removed/deleted photos are evicted by id and content version.
 
-Each plaque displays for 12 seconds with reduced-motion-safe crossfade. The QR signup remains visible or returns with official idle branding according to the existing layout. No photo audio is generated.
+Each carousel panel displays for 16 seconds with reduced-motion-safe crossfade. The website and Wi-Fi QR panels remain separate and manually reachable by TV remote. No photo audio is generated.
 
 ## 11. Constellation handoff
 

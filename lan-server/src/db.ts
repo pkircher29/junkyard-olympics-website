@@ -122,6 +122,105 @@ const migrations = [
   ALTER TABLE idempotency_keys ADD COLUMN request_hash TEXT;
   CREATE UNIQUE INDEX idx_control_idempotency_key ON idempotency_keys(key) WHERE scope LIKE 'control:%';
   `,
+  `
+  CREATE TABLE photo_uploads(
+    id TEXT PRIMARY KEY,
+    participant_id TEXT NOT NULL REFERENCES participants(id),
+    content_hash TEXT NOT NULL UNIQUE CHECK(length(content_hash)=64),
+    state TEXT NOT NULL CHECK(state IN ('UPLOADED','PROCESSING','PUBLISHED','PENDING_REVIEW','REJECTED','REMOVED','DELETED')),
+    optional_names TEXT CHECK(optional_names IS NULL OR length(optional_names)<=120),
+    consent_version TEXT NOT NULL,
+    consent_text TEXT NOT NULL,
+    consented_at TEXT NOT NULL,
+    request_correlation_id TEXT NOT NULL,
+    width INTEGER NOT NULL CHECK(width>0),
+    height INTEGER NOT NULL CHECK(height>0),
+    normalized_path TEXT NOT NULL UNIQUE,
+    plaque_path TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    published_at TEXT,
+    removed_at TEXT,
+    removal_requested_at TEXT,
+    deleted_at TEXT,
+    moderation_summary TEXT,
+    plaque_title TEXT CHECK(plaque_title IS NULL OR length(plaque_title)<=60),
+    plaque_caption TEXT CHECK(plaque_caption IS NULL OR length(plaque_caption)<=180),
+    constellation_export_state TEXT NOT NULL DEFAULT 'NOT_EXPORTED' CHECK(constellation_export_state IN ('NOT_EXPORTED','EXPORTED','TOMBSTONED'))
+  );
+  CREATE INDEX idx_photo_uploads_participant_created ON photo_uploads(participant_id,created_at);
+  CREATE INDEX idx_photo_uploads_state_created ON photo_uploads(state,created_at);
+  CREATE TABLE photo_moderation_events(
+    id TEXT PRIMARY KEY,
+    photo_id TEXT NOT NULL REFERENCES photo_uploads(id),
+    stage TEXT NOT NULL,
+    rule_version TEXT NOT NULL,
+    verdict TEXT NOT NULL,
+    confidence REAL,
+    reason_codes TEXT NOT NULL DEFAULT '[]',
+    actor TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX idx_photo_moderation_photo ON photo_moderation_events(photo_id,created_at);
+  CREATE TABLE photo_uploader_bans(
+    participant_id TEXT PRIMARY KEY REFERENCES participants(id),
+    source_photo_id TEXT REFERENCES photo_uploads(id),
+    actor TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE photo_wall_settings(
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0,1)),
+    rotation_interval_seconds INTEGER NOT NULL DEFAULT 12 CHECK(rotation_interval_seconds BETWEEN 5 AND 60),
+    updated_actor TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  INSERT INTO photo_wall_settings(id,enabled,rotation_interval_seconds,updated_actor,updated_at)
+  VALUES(1,0,12,'migration',CURRENT_TIMESTAMP);
+  CREATE TABLE photo_export_events(
+    id TEXT PRIMARY KEY,
+    bundle_id TEXT NOT NULL,
+    photo_id TEXT NOT NULL REFERENCES photo_uploads(id),
+    content_hash TEXT NOT NULL CHECK(length(content_hash)=64),
+    state TEXT NOT NULL CHECK(state IN ('EXPORTED','TOMBSTONE')),
+    created_at TEXT NOT NULL,
+    UNIQUE(bundle_id,photo_id,state)
+  );
+  CREATE INDEX idx_photo_export_photo ON photo_export_events(photo_id,created_at);
+  `,
+  `
+  CREATE TABLE photo_external_identities(
+    provider TEXT NOT NULL,
+    subject_hash TEXT NOT NULL CHECK(length(subject_hash)=64),
+    participant_id TEXT NOT NULL UNIQUE REFERENCES participants(id),
+    display_name TEXT NOT NULL CHECK(length(display_name) BETWEEN 2 AND 24),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(provider,subject_hash)
+  );
+  `,
+  `
+  ALTER TABLE cannon_runs ADD COLUMN mode TEXT NOT NULL DEFAULT 'quota' CHECK(mode IN ('quota','timed'));
+  ALTER TABLE cannon_runs ADD COLUMN duration_seconds INTEGER NOT NULL DEFAULT 300 CHECK(duration_seconds=300);
+  ALTER TABLE cannon_runs ADD COLUMN carnage_bonus INTEGER NOT NULL DEFAULT 50 CHECK(carnage_bonus>=0);
+  CREATE TABLE cannon_team_runs(
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES cannon_runs(id),
+    team_id TEXT NOT NULL REFERENCES teams(id),
+    state TEXT NOT NULL DEFAULT 'PENDING' CHECK(state IN ('PENDING','ACTIVE','COMPLETE','SAFETY_STOPPED')),
+    armed_clear INTEGER NOT NULL DEFAULT 0 CHECK(armed_clear IN (0,1)),
+    duration_seconds INTEGER NOT NULL DEFAULT 300 CHECK(duration_seconds=300),
+    started_at TEXT,
+    deadline_at TEXT,
+    ended_at TEXT,
+    stop_reason TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(run_id,team_id)
+  );
+  CREATE UNIQUE INDEX idx_cannon_one_active_team ON cannon_team_runs(run_id) WHERE state='ACTIVE';
+  ALTER TABLE cannon_shots ADD COLUMN team_run_id TEXT REFERENCES cannon_team_runs(id);
+  CREATE INDEX idx_cannon_shots_team_run ON cannon_shots(team_run_id,sequence);
+  `,
 ];
 
 const seedEvents = [

@@ -104,17 +104,16 @@ describe("truthful TV broadcast boundary", () => {
 
   it("accepts only same-origin photo-wall paths and blocks photos during urgent broadcast states", async () => {
     const { chooseCarouselPhoto, createCarouselPhotoController } = await import("../public/js/tv-photo-core.js");
-    const safe = { id: "p1", version: "v1", imageUrl: "/api/photo-wall/p1/v1" };
+    const safe = { id: "p1", version: "v1", imageUrl: "/api/photo-wall/photos/p1/image?version=v1" };
     expect(chooseCarouselPhoto({ enabled: true, photos: [safe] })).toEqual(safe);
     for (const imageUrl of [
       String.raw`/\\evil.example/leak.png`,
       "//evil.example/leak.png",
       "https://evil.example/leak.png",
-      "/api/photo-wall/p1/../secret",
-      "/api/photo-wall/p1/.",
-      "/api/photo-wall/p1/..",
-      "/api/photo-wall/p1/v1?next=//evil.example",
-      "/api/photo-wall/p1/%2e%2e",
+      "/api/photo-wall/photos/p1/../secret?version=v1",
+      "/api/photo-wall/photos/p1/image",
+      "/api/photo-wall/photos/p1/image?version=v1&next=//evil.example",
+      "/api/photo-wall/photos/%2e%2e/image?version=v1",
       "data:image/png;base64,AAAA",
     ]) expect(chooseCarouselPhoto({ enabled: true, photos: [{ ...safe, imageUrl }] })).toBe(null);
 

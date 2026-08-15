@@ -13,7 +13,10 @@
 5. Run Vitest, TypeScript, Gradle, Chrome, local VLM, and simulations serially.
 6. Never point tests at the live party database, production D1, Spotify, production Constellation, FamilyOS, or the Constellation Shield.
 7. Any uncertainty in screening is pending review; no code path may auto-publish on error.
-8. Any staged-byte change after independent review invalidates approval.
+9. Paul's tournament rules, bracket/scoring workflow, music player, Spotify integration, queue, audio routing, and music-worker behavior are authoritative and out of scope. Photo integration may add native-looking design/polish but must not import LAN tournament rules or alter Paul's behavior.
+10. All participant and organizer controls ship within the Junkyard Olympics website. Event HQ remains a secured backend only. Rehearsal, Cannon setup/scoring/alerts, and moderation are organizer-only sections of the website admin dashboard and never appear in participant navigation. Rehearsal uses a visibly synthetic, isolated database and cannot mutate live event state.
+11. Cannon is a timed-run event: one two-person team at a time, one server-authoritative five-minute build-and-shoot window, one or two launchers, unlimited legal shots, no practice quota, and immediate lock at expiration or Safety Stop. The software does not approve barrel attachments; physical organizers own that decision.
+12. Cannon values use a compact bell-curve ladder; washer maximum is 10,000 and Carnage is +1,000. T13 and T19 stay disabled. Exact remaining target assignments must be approved before activation and remain data-driven rather than embedded in button code.
 
 ## CP-P0 — Freeze contracts and prove the baseline
 
@@ -194,12 +197,13 @@
 - Real phone-width browser flow uploads, refreshes, restores identity, and sees final state.
 - Event-phone/SSID test remains required before deployment approval.
 
-## CP-P7 — Idle TV reel and priority proof
+## CP-P7 — TV carousel reel and urgent-state priority proof
 
 ### RED tests
 
-- TV chooses called match/result/official state over photo in every combination.
-- A photo displayed during idle disappears within the authoritative refresh bound when a call arrives.
+- TV chooses offline/recovery, sound prompt, called match, active match, and recent result over a photo in every combination.
+- Approved photos remain eligible during normal standings and queued-event carousel states.
+- A displayed photo disappears within the authoritative refresh bound when an urgent state arrives.
 - Photo changes never trigger gong/speech/result audio.
 - Removed/deleted/version-changed photo is evicted across polling, SSE, restart, and cache.
 - Empty/disabled/pending-only/photo-fetch-failure returns branded idle state.
@@ -208,7 +212,7 @@
 ### GREEN implementation
 
 - Extend authoritative public state with a bounded published reel descriptor.
-- Add idle-only 12-second rotation and reduced-motion-safe transition.
+- Add normal 16-second carousel rotation and reduced-motion-safe transition.
 - Preserve signup QR and existing broadcast controls.
 - Keep audio deduplication semantics unchanged.
 
@@ -271,7 +275,7 @@
 
 - Back up the live database and runtime photo root.
 - Deploy only the exact independently approved commit.
-- Push the reviewed branch to both `pkircher29/junkyard-olympics-website` and `crose0122/junkyard-olympics`; keep their `main` trees equal after merge.
+- Push the reviewed candidate only to private `crose0122/junkyard-olympics`. Updating `pkircher29/junkyard-olympics-website` requires Paul's explicit review and approval as the tournament/auth/music owner.
 - Cloudflare worker deployment and live LAN cutover are separate approval boundaries. A Git merge does not imply either runtime changed.
 - Verify service `MainPID`, exact source SHA, health, migration, organizer access, upload, moderation, idle TV, and call preemption.
 - Keep canonical base `051482a…` and approved LAN release `c3ef55f…` immediately deployable.

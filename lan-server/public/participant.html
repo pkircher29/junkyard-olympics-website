@@ -58,6 +58,21 @@
       <div id="results-list" class="feed-card-list"><p class="empty-copy">No completed results yet.</p></div>
     </section>
 
+    <section id="photo-upload" class="feed-section photo-upload-card" aria-labelledby="photo-heading">
+      <div class="feed-heading"><span class="number-tag olive-tag">PHOTO</span><div><p class="feed-kicker">Party memories</p><h2 id="photo-heading">Junkyard Constellation</h2></div></div>
+      <p><b>The party’s private-to-approved memory wall.</b> Camera or gallery uploads stay private unless an organizer approves them. Approved photos may appear on the field TV only while official action is idle.</p>
+      <label class="photo-file-action" for="photo-file">Choose camera or gallery</label>
+      <input id="photo-file" type="file" accept="image/jpeg,image/png,image/webp" capture="environment">
+      <img id="photo-preview" class="photo-preview" alt="Selected photo preview" hidden>
+      <label for="photo-names">Names to show (optional)</label>
+      <input id="photo-names" type="text" maxlength="160" autocomplete="off" placeholder="Only names people asked you to include">
+      <label class="photo-consent-copy" for="photo-consent"><input id="photo-consent" type="checkbox"> <span>I confirm that everyone identifiable in this photo agreed that it may appear publicly on the Junkyard Olympics screen and may be permanently archived in Constellation. I understand an organizer can remove it and I can request deletion.</span></label>
+      <progress id="photo-progress" max="100" value="0" hidden>0%</progress>
+      <button id="photo-submit" class="primary-action photo-primary-action" type="button" disabled>Send privately for review</button>
+      <p id="photo-status" class="form-status photo-status" role="status" aria-live="polite">Choose a photo from your camera or gallery.</p>
+      <button id="photo-removal-request" class="secondary-action" type="button" hidden>Request removal / deletion</button>
+    </section>
+
     <section id="flair" class="feed-section flair-section" aria-labelledby="flair-heading">
       <div class="feed-heading"><span class="number-tag olive-tag">03</span><div><p class="feed-kicker">Separate contest</p><h2 id="flair-heading">Flair / Showboat</h2></div></div>
       <p>See something magnificent, ridiculous, or surprisingly sporting? Throw them a prop.</p>

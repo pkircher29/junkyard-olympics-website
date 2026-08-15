@@ -206,10 +206,8 @@ const Views = (() => {
       <div class="card">
         <div class="chiprow" style="gap:10px;flex-wrap:wrap">
           <a class="btn btn-accent" href="${esc(hq)}/tv.html" target="_blank" rel="noopener">📺 TV Broadcast</a>
-          <a class="btn btn-ghost" href="${esc(hq)}/cannon.html" target="_blank" rel="noopener">💥 Cannon Console</a>
           <a class="btn btn-ghost" href="${esc(hq)}/participant.html" target="_blank" rel="noopener">🧑‍🔧 My Yard</a>
           <a class="btn btn-ghost" href="${esc(hq)}/index.html" target="_blank" rel="noopener">📝 HQ Signup</a>
-          ${Auth.isHost ? `<a class="btn btn-ghost" href="${esc(hq)}/organizer.html" target="_blank" rel="noopener">🎛 Organizer</a>` : ''}
         </div>
         <div id="hq-standings" style="margin-top:10px"><p class="muted small">Reaching HQ…</p></div>
         <p class="muted small">Works when this device can reach the control tower — party Wi-Fi, Tailscale, or a Tailscale Funnel URL.</p>
@@ -247,25 +245,30 @@ const Views = (() => {
 
   function hqPage() {
     if (!Auth.isHost) return `<section><div class="empty">🎛 Hosts only.</div></section>`;
-    const cur = Store.setting('hqUrl') || '';
     return `
     <section>
       <a class="backlink" href="#/">← Overview</a>
-      <h2>🎪 Connect Event HQ</h2>
-      <div class="card form">
-        <p class="muted small">Point the site at Chris's LAN control tower (the Node server on RecRoomRig,
-          port 8790). The link syncs to every device in the room. Use whichever URL guests can reach:</p>
-        <p class="muted small">
-          · Same Wi-Fi: <b>http://&lt;recroomrig-lan-ip&gt;:8790</b><br>
-          · Tailscale (device on the tailnet): <b>http://recroomrig:8790</b><br>
-          · From anywhere: run <b>tailscale funnel 8790</b> on RecRoomRig and paste the
-          <b>https://…ts.net</b> URL it prints — guests' phones reach it over the internet.</p>
-        <div class="addrow">
-          <input id="hq-url" value="${esc(cur)}" placeholder="http://192.168.1.x:8790 or https://recroomrig.tailXXXX.ts.net" autocomplete="off">
-          <button class="btn btn-accent" data-action="hq-save">Save</button>
+      <div class="sec-head">
+        <div><span class="eyebrow">verified host controls</span><h2>🎪 Event HQ</h2></div>
+        <span id="hq-connection" class="chip chip-rule">CONNECTING</span>
+      </div>
+      <div class="card">
+        <p class="muted small">The website uses its fixed secure Event HQ route. There is no paste-a-server-URL box and no browser-stored organizer secret.</p>
+      </div>
+    </section>
+
+    <section id="cannon-admin" data-cannon-state="loading" aria-labelledby="cannon-admin-title">
+      <div class="sec-head">
+        <h2 id="cannon-admin-title">💥 Junkyard Cannon</h2>
+        <span class="chip chip-active">HOSTS ONLY</span>
+      </div>
+      <div id="cannon-status" class="warning" role="status"><b>CHECKING EVENT HQ…</b></div>
+      <div id="cannon-admin-content" class="card form cannon-admin-shell">
+        <div id="cannon-target-editor" class="cannon-admin-targets"><p class="muted small">Loading authoritative teams, targets, and run state…</p></div>
+        <div class="cannon-admin-disabled-grid">
+          <button class="btn btn-accent" data-action="cannon-setup-save" disabled>Confirm approved setup</button>
+          <button class="btn btn-danger" data-action="cannon-safety-stop" disabled>🛑 Safety Stop</button>
         </div>
-        <p class="muted small">Leave blank and Save to disconnect. Standings panels need the control tower
-          run from the merged repo (it adds read-only CORS); the page links work either way.</p>
       </div>
     </section>`;
   }
@@ -422,29 +425,57 @@ const Views = (() => {
   function gamesSignup() {
     const me = Store.playerByName(Auth.name);
     const myGames = me ? Store.gamesOf(me.id) : [];
-    const cards = GAME_PRESETS.filter(g => g.name !== 'Custom').map(g => {
+    const presets = GAME_PRESETS.filter(g => g.name !== 'Custom');
+    const cannon = presets.find(g => g.name === 'Junkyard Cannon');
+    const competitiveNames = new Set(['Cornhole', 'Ladder Golf', 'Lawn Darts', 'Washers', 'Field Pong', 'Bocce Ball', 'Volley Strike', 'Can Jam']);
+    const competitive = presets.filter(g => competitiveNames.has(g.name));
+    const casual = presets.filter(g => g !== cannon && !competitiveNames.has(g.name));
+
+    const card = (g, kind, featured = false) => {
       const entered = Store.signupsFor(g.name);
       const iAmIn = myGames.includes(g.name);
       return `
-      <div class="card gamecard">
-        <div class="sec-head" style="margin:0 0 6px">
-          <h3>${g.icon} ${esc(g.name)}</h3>
-          <button class="btn ${iAmIn ? 'btn-ghost' : 'btn-accent'} btn-sm" data-action="toggle-game" data-game="${esc(g.name)}">
+      <article class="card event-signup-card ${featured ? 'cannon-signup-card' : ''} ${kind === 'casual' ? 'casual-signup-card' : 'competition-signup-card'}">
+        <div class="event-card-main">
+          <div class="event-card-icon" aria-hidden="true">${g.icon}</div>
+          <div class="event-card-copy">
+            <div class="event-type-row">
+              <span class="event-type ${kind}">${featured ? 'Required championship event' : kind === 'competitive' ? 'Championship competition' : 'Signup · just for fun'}</span>
+              ${featured ? '<span class="event-required">MUST COMPLETE</span>' : ''}
+            </div>
+            <h3>${esc(g.name)}</h3>
+            ${featured ? '<p class="cannon-rule"><b>Want to compete for Junkyard Champion?</b> You must complete the Junkyard Cannon. Your championship total uses the Cannon plus your best three competitive-event scores.</p>' : kind === 'casual' ? '<p class="event-explainer">Come play, hang out, and get your name on the signup list. This event does not count toward Junkyard Champion.</p>' : '<p class="event-explainer">This event can count as one of your three best competitive-event scores.</p>'}
+          </div>
+          <button class="btn ${iAmIn ? 'btn-ghost' : 'btn-accent'} event-entry-button" data-action="toggle-game" data-game="${esc(g.name)}">
             ${iAmIn ? '✓ Entered — tap to leave' : "I'M IN →"}</button>
         </div>
-        <p class="muted small">${entered.length
+        <p class="event-entry-list muted small">${entered.length
           ? `${entered.length} entered: ` + entered.map(Store.playerName).map(esc).join(' · ')
-          : 'no entries yet — be the first'}</p>
-      </div>`;
-    }).join('');
+          : 'No entries yet — be the first.'}</p>
+      </article>`;
+    };
+
     return `
-    <section>
-      <p class="muted small" style="text-transform:uppercase;letter-spacing:.12em">your day in the yard</p>
-      <h2 style="margin-top:2px">Pick your events</h2>
-      <p class="muted small">Hey, <b>${esc(Auth.name)}</b> — enter everything you want to play.
-        The hosts draw each bracket from these entry lists. Change your mind any time before a bracket starts.
-        Want a set partner? <a href="#/players" style="color:var(--accent)">Form a team</a> after you've entered.</p>
-      <div class="teamgrid" style="margin-top:14px">${cards}</div>
+    <section class="event-signup-page">
+      <p class="eyebrow">your day in the yard</p>
+      <h2>Pick your events</h2>
+      <p class="event-signup-intro">Hey, <b>${esc(Auth.name)}</b> — enter everything you want to play. The hosts draw each bracket from these entry lists. Change your mind any time before a bracket starts.</p>
+
+      <div class="championship-rule-banner">
+        <span class="championship-rule-number">CANNON + 3</span>
+        <div><b>How Junkyard Champion works</b><span>Complete the Junkyard Cannon, then your best three scores from the competitive events below build your championship total.</span></div>
+      </div>
+
+      ${cannon ? card(cannon, 'competitive', true) : ''}
+
+      <div class="event-section-heading"><div><span class="event-heading-kicker">Scores count</span><h3>Championship competition</h3></div><span class="event-section-mark competition">COMPETE</span></div>
+      <div class="event-signup-grid">${competitive.map(g => card(g, 'competitive')).join('')}</div>
+
+      <div class="event-section-heading casual-heading"><div><span class="event-heading-kicker">No championship pressure</span><h3>Signup and play for fun</h3></div><span class="event-section-mark casual">JUST PLAY</span></div>
+      <p class="casual-section-copy">These still use signup lists so everyone knows who wants to play, but their results do not count toward Junkyard Champion.</p>
+      <div class="event-signup-grid casual-grid">${casual.map(g => card(g, 'casual')).join('')}</div>
+
+      <p class="muted small event-team-note">Want a set partner? <a href="#/players" style="color:var(--accent)">Form a team</a> after you've entered.</p>
     </section>`;
   }
 
@@ -509,6 +540,37 @@ const Views = (() => {
         <p class="muted small">Keep the name family-viewable — the censor bleeps anything spicy. 🧼</p>
       </div>
       <div class="teamgrid">${teamCards}</div>
+    </section>`;
+  }
+
+  /* =============== Junkyard Constellation (Paul rules stay untouched) =============== */
+
+  function photoVault() {
+    return `
+    <section class="photo-vault-page">
+      <a class="backlink" href="#/">← Overview</a>
+      <div class="photo-vault-hero">
+        <div><span class="eyebrow">Party memories</span><h2>📸 Junkyard Constellation</h2><p class="muted small">The party’s private-to-approved memory wall.</p></div>
+        <span class="chip chip-live">PRIVATE UNTIL APPROVED</span>
+      </div>
+      <div class="photo-vault-grid">
+        <div class="card photo-vault-card">
+          <h3>Add your party photo</h3>
+          <p class="muted small">Choose a camera photo or something from your gallery. It goes privately to the organizers first. Tournament scoring and music never wait on photo processing.</p>
+          <label class="photo-pick" for="vault-photo">📷 Choose camera or gallery</label>
+          <input id="vault-photo" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
+          <img id="vault-preview" class="vault-preview" alt="Selected photo preview" hidden>
+          <label class="f">Names to show <span class="muted small">(optional)</span>
+            <input id="vault-names" maxlength="120" autocomplete="off" placeholder="Only include people who said yes"></label>
+          <label class="vault-consent"><input id="vault-consent" type="checkbox"> <span>Everyone identifiable agreed this photo may appear on the Junkyard Olympics screen and may be archived in Constellation. I can request removal.</span></label>
+          <button class="btn btn-accent btn-lg" data-action="photo-submit" id="vault-submit" disabled>Send privately for review</button>
+          <div id="vault-status" class="photo-vault-status muted small" role="status">Choose a photo to begin.</div>
+        </div>
+        <div class="card">
+          <div class="sec-head"><h3>Your submissions</h3><button class="btn btn-ghost btn-sm" data-action="photo-refresh">Refresh</button></div>
+          <div id="vault-list"><p class="muted small">Loading your private submission history…</p></div>
+        </div>
+      </div>
     </section>`;
   }
 
@@ -867,6 +929,6 @@ const Views = (() => {
   }
 
   return { overview, players, newTournament, tournamentPage, scorePage, loginGate,
-           joinGate, qrPage, hqPage, loadHqStandings, gamesSignup, competitorPass,
+           joinGate, qrPage, hqPage, loadHqStandings, gamesSignup, competitorPass, photoVault,
            getDraft, resetDraft, shuffleDraftTeams, draftTeamCount };
 })();

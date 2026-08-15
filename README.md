@@ -70,11 +70,11 @@ Next up (in value order): port TV broadcast natively, Flair, confirm/dispute
 results, consolation bracket path, cannon engine. `lan-server/` stays intact
 as the reference implementation and the internet-outage fallback.
 
-## Photo Vault integration
+## Junkyard Constellation integration
 
-The founder-approved photo vault is being integrated on `feat/photo-vault-merge`
-from this exact canonical tree. Signed-in guests will get a native **Photo
-Vault** route in Paul's hosted app. Their existing Paul session is validated
+The founder-approved local photo vault is being integrated on `feat/photo-vault-merge`
+from this exact canonical tree. Signed-in guests will get a native **Junkyard
+Constellation** route in Paul's hosted app. Their existing Paul session is validated
 server-to-server and mapped by immutable external subject id into the local
 vault; guests do not create a second display-name identity.
 
@@ -92,6 +92,12 @@ Frozen requirements and execution gates:
 Git merge, Cloudflare worker deployment, and live LAN deployment are three
 separate approval boundaries. Until exact-snapshot review and real-device
 rehearsal pass, the current party runtimes stay unchanged.
+
+The website is the only family/participant/operator UI. Event HQ provides the
+secured API, SQLite state, photo processing, and recovery services behind it.
+Rehearsal, Cannon setup/scoring/alerts, and moderation are organizer-only
+sections of the website admin dashboard; they never appear in participant
+navigation. Rehearsal uses a visibly synthetic disposable event state.
 
 ## Credits
 

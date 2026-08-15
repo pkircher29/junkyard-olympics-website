@@ -1,5 +1,5 @@
 const BLOCKERS = ['offline', 'soundPrompt', 'called', 'active', 'result'];
-const SAFE_PHOTO_URL = /^\/api\/photo-wall\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}$/;
+const SAFE_PHOTO_URL = /^\/api\/photo-wall\/photos\/[A-Za-z0-9_-]{1,128}\/image\?version=[A-Za-z0-9_-]{1,128}$/;
 const validPhoto = photo => Boolean(
   photo &&
   photo.id &&
@@ -15,7 +15,7 @@ export function chooseCarouselPhoto(input = {}, index = 0) {
   return photos.length ? photos[Math.abs(index) % photos.length] : null;
 }
 
-export function createCarouselPhotoController({ now = () => Date.now(), rotationMs = 12_000 } = {}) {
+export function createCarouselPhotoController({ now = () => Date.now(), rotationMs = 16_000 } = {}) {
   let currentKey = null;
   let lastRotation = null;
   let index = 0;

@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "status": "founder-approved",
+  "approvedAt": "2026-08-15",
+  "durationSeconds": 300,
+  "teamSize": 2,
+  "unlimitedShots": true,
+  "carnageBonus": 1000,
+  "targets": [
+    { "id": "T01", "label": "Tiny Golden Washer", "points": 10000, "enabled": true, "jackpot": true },
+    { "id": "T02", "label": "Hubcap / Wheel Disc", "points": 1000, "enabled": true, "jackpot": false },
+    { "id": "T03", "label": "Hanging License Plates", "points": 500, "enabled": true, "jackpot": false, "grouped": true },
+    { "id": "T04", "label": "Hanging Bottles / Small Objects", "points": 500, "enabled": true, "jackpot": false, "grouped": true },
+    { "id": "T05", "label": "Plus-Sign Diamond", "points": 500, "enabled": true, "jackpot": false },
+    { "id": "T06", "label": "Sad-Face Diamond", "points": 500, "enabled": true, "jackpot": false },
+    { "id": "T07", "label": "Wooden Hanging Square", "points": 250, "enabled": true, "jackpot": false },
+    { "id": "T08", "label": "Soft / Plush Hanging Target", "points": 250, "enabled": true, "jackpot": false },
+    { "id": "T09", "label": "Ladder Bottle", "points": 250, "enabled": true, "jackpot": false },
+    { "id": "T10", "label": "Double-Disc Paddle Pole", "points": 500, "enabled": true, "jackpot": false },
+    { "id": "T11", "label": "Unicorn", "points": 100, "enabled": true, "jackpot": false },
+    { "id": "T12", "label": "Tiki Head", "points": 100, "enabled": true, "jackpot": false },
+    { "id": "T13", "label": "AmeriGas Cylinder-Shaped Target", "points": 100, "enabled": false, "jackpot": false, "disabledReason": "Disabled until confirmed empty/decommissioned and launcher/projectile review is complete." },
+    { "id": "T14", "label": "WaveMaster Cylinder", "points": 50, "enabled": true, "jackpot": false },
+    { "id": "T15", "label": "Standing Green Boards", "points": 50, "enabled": true, "jackpot": false, "grouped": true },
+    { "id": "T16", "label": "Standing Plain Board / Frame", "points": 50, "enabled": true, "jackpot": false },
+    { "id": "T17", "label": "IBC Tote", "points": 10, "enabled": true, "jackpot": false },
+    { "id": "T18", "label": "Black Crate / Ramp", "points": 100, "enabled": true, "jackpot": false },
+    { "id": "T19", "label": "Ground Plates / Holes", "points": 250, "enabled": false, "jackpot": false, "disabledReason": "Disabled until ground targets are distinguished from UV lights, cables, and fixtures." }
+  ]
+}

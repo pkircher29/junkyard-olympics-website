@@ -35,14 +35,67 @@ const TYPES = {
   md: 'text/plain; charset=utf-8',
 };
 
-/* The MAIN SITE (junkyardolympics.com) is Chris's control tower — his full
-   app, proxied over the tailnet bridge:
-     guest -> this worker -> VPS relay (relay.junkyardolympics.com:8880,
-     socat) -> tailnet -> RecRoomRig:8790 (Node/SQLite server).
-   Paul's bracket scoreboard lives on bracket.junkyardolympics.com (static
-   files from this repo). The sync API (/r/:room) answers on every host. */
-const HQ_ORIGIN = 'http://relay.junkyardolympics.com:8880';
+/* Event HQ is configured at deploy time and MUST be HTTPS. The public site
+   never falls back to the old plaintext relay for credentials or mutations. */
 const HQ_HOSTS = ['hq.junkyardolympics.com'];
+const SITE_HOSTS = ['junkyardolympics.com', 'www.junkyardolympics.com'];
+
+function eventHqOrigin(env) {
+  try {
+    const url = new URL(String(env.EVENT_HQ_ORIGIN || ''));
+    if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) return null;
+    return url.origin;
+  } catch { return null; }
+}
+
+function hqApiRoute(pathname) {
+  if (!pathname.startsWith('/hq-api/')) return null;
+  const path = pathname.slice('/hq-api'.length);
+  if (/^\/api\/(?:state|teams)$/.test(path)) return { path, methods: ['GET', 'HEAD'] };
+  if (/^\/api\/photo-wall(?:\/photos\/[A-Za-z0-9_-]+\/image)?$/.test(path)) return { path, methods: ['GET', 'HEAD'] };
+  if (/^\/api\/photos(?:\/[^/]+(?:\/[^/]+)?)?$/.test(path)) return { path, methods: ['GET', 'HEAD', 'POST', 'DELETE'] };
+  if (/^\/api\/organizer\/photos$/.test(path)) return { path, methods: ['GET', 'HEAD'] };
+  if (/^\/api\/organizer\/photos\/[^/]+\/preview$/.test(path)) return { path, methods: ['GET', 'HEAD'] };
+  if (/^\/api\/organizer\/photos\/[^/]+\/(?:publish|reject|remove|restore|delete|ban-uploader)$/.test(path)) return { path, methods: ['POST'] };
+  if (/^\/api\/organizer\/photo-wall$/.test(path)) return { path, methods: ['PATCH'] };
+  if (/^\/api\/cannon(?:\/[A-Za-z0-9_-]+)*$/.test(path)) return { path, methods: ['GET', 'HEAD', 'POST', 'DELETE'] };
+  return false;
+}
+
+function jsonError(message, status, extraHeaders = {}) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...extraHeaders },
+  });
+}
+
+async function forwardHqApi(req, url, origin, route) {
+  if (!route.methods.includes(req.method)) return jsonError('method not allowed', 405, { Allow: route.methods.join(', ') });
+  const length = Number(req.headers.get('content-length') || 0);
+  if (!Number.isFinite(length) || length > 9 * 1024 * 1024) return jsonError('request too large', 413);
+  const headers = new Headers();
+  const authorization = req.headers.get('authorization');
+  const contentType = req.headers.get('content-type');
+  if (authorization) headers.set('Authorization', authorization);
+  if (contentType) headers.set('Content-Type', contentType);
+  try {
+    const upstream = await fetch(new Request(origin + route.path + url.search, {
+      method: req.method,
+      headers,
+      body: ['GET', 'HEAD'].includes(req.method) ? undefined : req.body,
+      duplex: ['GET', 'HEAD'].includes(req.method) ? undefined : 'half',
+    }));
+    const responseHeaders = new Headers();
+    for (const name of ['content-type', 'cache-control', 'content-disposition', 'etag', 'last-modified']) {
+      const value = upstream.headers.get(name);
+      if (value) responseHeaders.set(name, value);
+    }
+    responseHeaders.set('Cache-Control', responseHeaders.get('Cache-Control') || 'no-store');
+    return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
+  } catch {
+    return jsonError('Event HQ is unavailable', 503);
+  }
+}
 
 function hqDownPage() {
   return new Response(`<!doctype html><html><head><meta charset="utf-8">
@@ -72,14 +125,31 @@ export default {
     const url = new URL(req.url);
     const m = url.pathname.match(/^\/r\/([a-zA-Z0-9_-]{1,64})$/);
 
+    /* ---------- exact same-origin Event HQ API tunnel ---------- */
+    const hqRoute = hqApiRoute(url.pathname);
+    if (hqRoute !== null) {
+      if (!SITE_HOSTS.includes(url.hostname)) return jsonError('not found', 404);
+      if (hqRoute === false) return jsonError('not found', 404);
+      const origin = eventHqOrigin(env);
+      if (!origin) return jsonError('Event HQ secure route is not configured', 503);
+      return forwardHqApi(req, url, origin, hqRoute);
+    }
+
     // Chris's app on the main domain — every path except the sync API
     if (!m && HQ_HOSTS.includes(url.hostname)) {
+      const origin = eventHqOrigin(env);
+      if (!origin) return hqDownPage();
+      if (url.pathname.startsWith('/api/')) {
+        const directRoute = hqApiRoute('/hq-api' + url.pathname);
+        if (!directRoute) return jsonError('not found', 404);
+        return forwardHqApi(req, url, origin, directRoute);
+      }
+      if (!['GET', 'HEAD'].includes(req.method)) return jsonError('method not allowed', 405, { Allow: 'GET, HEAD' });
       try {
-        const upstream = await fetch(new Request(HQ_ORIGIN + url.pathname + url.search, req));
+        const upstream = await fetch(new Request(origin + url.pathname + url.search, { method: req.method }));
         // network failures surface as synthetic Cloudflare 52x responses
         if (upstream.status >= 520 && upstream.status <= 530) return hqDownPage();
         const headers = new Headers(upstream.headers);
-        if (url.pathname.startsWith('/api/')) headers.set('Access-Control-Allow-Origin', '*');
         const out = new Response(upstream.body, { status: upstream.status, headers });
         // yard bar: link the jukebox + bracket scoreboard from every HQ page
         if (upstream.ok && (headers.get('content-type') || '').includes('text/html')) {

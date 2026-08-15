@@ -3,12 +3,14 @@ import { demo } from './demo-data.js';
 import { esc, initShell, toast } from './ui.js';
 import { buildParticipantFeed } from './participant-feed.js';
 import { createCallCountdownTicker } from './call-countdown.js';
+import { initPhotoUpload } from './photo-upload.js';
 
 initShell('participant');
 const $ = selector => document.querySelector(selector);
 let feed;
 let liveState;
 const countdown = createCallCountdownTicker({ render: text => { $('#call-countdown').textContent = text; } });
+const stopPhotoUpload = initPhotoUpload({ api, demo: api.demo });
 
 function namesMarkup(match) {
   if (feed.mode === 'demo') {
@@ -158,6 +160,6 @@ $('#reset-device').addEventListener('click', () => {
   location.href = '/';
 });
 
-window.addEventListener('pagehide', countdown.stop);
+window.addEventListener('pagehide', () => { countdown.stop(); stopPhotoUpload(); });
 
 await loadFeed();
