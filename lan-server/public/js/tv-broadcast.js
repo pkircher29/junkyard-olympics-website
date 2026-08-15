@@ -5,25 +5,33 @@ import {
   initialBroadcastData,
   isDemoMode,
   mapApiBroadcastData,
+  normalizeBroadcastRoster,
+  normalizePublicMusicQueue,
+  enabledPanelNames,
   panelSetChanged,
   steppedPanelIndex,
 } from "./tv-core.js";
+import { createCarouselPhotoController } from "./tv-photo-core.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const esc = value => String(value ?? "").replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
 const demoMode = isDemoMode(location.search);
 const preferences = createAudioPreferences(localStorage);
+const photoController = createCarouselPhotoController();
 let broadcast = null;
+let currentPhotoWall = { enabled: false, photos: [] };
 let latestFeatured = null;
 let soundUnlocked = false;
 let pollTimer;
 let rotateTimer;
+let photoRotateTimer;
 let reconnectDelay = 5_000;
 let panelIndex = 0;
-let panelSeconds = 12;
+let panelSeconds = 16;
 let panelSignature = "";
 let enabledPanels = [];
+let wifiAvailable = false;
 
 function demoBroadcast(source) {
   const featured = source.activeMatch ? {
@@ -45,6 +53,8 @@ function demoBroadcast(source) {
     standings: source.standings.map(row => ({ displayName: row.name, total: row.total, eligible: row.eligible, countedFieldPoints: row.counted, droppedFieldPoints: row.dropped })),
     podium: source.standings.filter(row => row.eligible).slice(0, 3).map(row => ({ displayName: row.name, total: row.total })),
     stations: source.matches.map((match, index) => ({ id: `demo-s-${index}`, name: match.station, available: match.status !== "PLAYING", match: { ...match, teamA: match.a, teamB: match.b, event: match.event, status: match.status } })),
+    roster: normalizeBroadcastRoster(source.participants),
+    music: normalizePublicMusicQueue(null),
     flairStandings: source.flair.map(row => ({ displayName: row.name, total: row.points, note: row.note })),
     flairFeed: source.flair.map((row, index) => ({ id: `demo-f-${index}`, recipientDisplayName: row.name, category: row.note })),
     results: [],
@@ -65,6 +75,7 @@ async function playSting(kind = "call") {
   } catch {
     soundUnlocked = false;
     $("#enable-audio").hidden = false;
+    if (broadcast) render(broadcast);
     return false;
   }
 }
@@ -90,17 +101,32 @@ function setConnection(status) {
   const badge = $("#connection-badge");
   badge.innerHTML = `<span class="signal"></span>${demoMode ? "DEMO" : status === "live" ? "LOCAL LIVE" : "RECONNECTING"}`;
   $("#connection-overlay").hidden = status === "live" || demoMode;
+  if (status !== "live" && !demoMode) {
+    photoController.update({ ...currentPhotoWall, offline: true });
+    window.clearTimeout(photoRotateTimer);
+    photoRotateTimer = null;
+    $("#photo-wall-image").removeAttribute("src");
+    document.body.classList.remove("dedicated-qr-active");
+    $$(".tv-panel").forEach(panel => panel.classList.toggle("active", panel.dataset.panel === "idle"));
+  }
 }
 
 async function fetchOfficialBroadcast() {
-  const responses = await Promise.all([
+  const photoRequest = fetch("/api/photo-wall", { credentials: "same-origin", headers: { Accept: "application/json" } })
+    .then(response => response.ok ? response.json() : null)
+    .catch(() => null);
+  const musicRequest = fetch("https://music.junkyardolympics.com/api/public/queue", { mode: "cors", credentials: "omit", headers: { Accept: "application/json" } })
+    .then(response => response.ok ? response.json() : null)
+    .then(normalizePublicMusicQueue)
+    .catch(() => normalizePublicMusicQueue(null));
+  const [responses, photoWall, music] = await Promise.all([Promise.all([
     fetch("/api/state", { credentials: "same-origin", headers: { Accept: "application/json" } }),
     fetch("/api/standings/championship", { credentials: "same-origin", headers: { Accept: "application/json" } }),
     fetch("/api/standings/flair", { credentials: "same-origin", headers: { Accept: "application/json" } }),
-  ]);
+  ]), photoRequest, musicRequest]);
   if (responses.some(response => !response.ok)) throw new Error("Official broadcast data unavailable");
   const [state, championship, flair] = await Promise.all(responses.map(response => response.json()));
-  return mapApiBroadcastData(state, championship, flair);
+  return { ...mapApiBroadcastData(state, championship, flair), photoWall: photoWall ?? { enabled: false, photos: [] }, music };
 }
 
 async function refresh() {
@@ -136,30 +162,61 @@ function renderCall(match) {
 
 function render(data) {
   renderCall(data.featuredMatch);
-  const hasOfficialData = Boolean(data.featuredMatch || data.queue.length || data.cannonLanes.length || data.standings.length || data.flairStandings.length);
+  const hasOfficialData = Boolean(data.featuredMatch || data.queue.length || data.cannonLanes.length || data.standings.length || data.flairStandings.length || data.roster.length);
+  currentPhotoWall = data.photoWall ?? { enabled: false, photos: [] };
+  const resultActive = data.results.some(result => Date.now() - Date.parse(result.completedAt) < 12_000);
+  const photo = photoController.update({ ...currentPhotoWall, called: data.featuredMatch?.status === "CALLED", active: data.featuredMatch?.status === "ACTIVE", result: resultActive, soundPrompt: !$("#enable-audio").hidden });
+  if (photo) {
+    $("#photo-wall-image").src = photo.imageUrl;
+    $("#photo-wall-title").textContent = photo.title ?? "Junkyard Constellation";
+    $("#photo-wall-caption").textContent = photo.caption ?? "Approved event photo.";
+    $("#photo-wall-names").textContent = photo.names ?? "";
+    if (!photoRotateTimer) photoRotateTimer = window.setTimeout(() => {
+      photoRotateTimer = null;
+      if (broadcast) render(broadcast);
+    }, 12_000);
+  } else {
+    window.clearTimeout(photoRotateTimer);
+    photoRotateTimer = null;
+    $("#photo-wall-image").removeAttribute("src");
+  }
   $("#idle-status").textContent = hasOfficialData ? "Official scores and calls are coming up." : "Waiting for the first official call.";
   $("#ticker").textContent = demoMode ? "DEMO BROADCAST · Sample names and scores" : data.featuredMatch ? `${data.featuredMatch.status}: ${data.featuredMatch.event} at ${data.featuredMatch.station}` : "Opening field broadcast · Waiting for official calls";
 
   $("#queue").innerHTML = data.queue.length ? data.queue.slice(0, 6).map((match, index) => `<div class="tv-row"><strong>${index + 1}</strong><b>${esc(match.event)}</b><span>${esc(match.teamA)} vs ${esc(match.teamB)}</span><em>${esc(match.status)}</em></div>`).join("") : emptyRow("No matches queued");
+  renderMusic(data.music);
   $("#cannon-lanes").innerHTML = data.cannonLanes.length ? data.cannonLanes.map(lane => `<article><span>${esc(lane.laneId)} · PRACTICE ${lane.practiceShots}/10 · SCORED ${lane.scoredShots}/20</span><b>${esc(lane.team)}</b><small>${esc(lane.players?.join(" + ") || "Roster pending")}</small><em>${Number(lane.total).toLocaleString()}</em><p>Last: ${esc(lane.lastTargets?.length ? `${lane.lastTargets.join(" + ")} · ${lane.lastPoints}` : `${lane.lastPoints ?? 0} points`)}</p></article>`).join("") : emptyCard("No Cannon run is active");
   $("#podium").innerHTML = data.podium.length ? data.podium.map((row, index) => `<article><span>${["CHAMPION", "SECOND", "THIRD"][index]}</span><b>${esc(row.displayName)}</b><em>${Number(row.total).toLocaleString()}</em></article>`).join("") : "";
   $("#standings").innerHTML = data.standings.length ? data.standings.slice(0, 6).map((row, index) => `<div class="tv-row"><strong>${index + 1}</strong><b>${esc(row.displayName)}</b><span>Counted: ${esc(Array.isArray(row.countedFieldPoints) ? row.countedFieldPoints.join(" + ") : row.countedFieldPoints || "—")}<small>${row.eligible ? "PODIUM ELIGIBLE" : "NEEDS CANNON + 3 FIELD EVENTS"}${row.droppedFieldPoints?.length ? ` · DROPPED ${row.droppedFieldPoints.join(", ")}` : ""}</small></span><em>${Number(row.total).toLocaleString()}</em></div>`).join("") : emptyRow("No official championship scores yet");
   $("#yard").innerHTML = data.stations.length ? data.stations.map(station => `<article><span>${esc(station.name)}</span><h2>${station.match ? `${esc(station.match.teamA)} <i>vs</i> ${esc(station.match.teamB)}` : station.available ? "READY" : "UNAVAILABLE"}</h2><p>${esc(station.match?.event ?? station.event)}</p><b>${esc(station.match?.status ?? (station.available ? "OPEN" : "CLOSED"))}</b></article>`).join("") : emptyCard("No stations configured");
+  const roster = $("#roster");
+  roster.dataset.density = data.roster.length > 24 ? "dense" : data.roster.length > 12 ? "compact" : "standard";
+  roster.innerHTML = data.roster.length ? data.roster.map((participant, index) => `<article class="${participant.active === 0 ? "inactive" : ""}"><strong>${index + 1}</strong><b>${esc(participant.displayName)}</b><span>${participant.active === 0 ? "Checked out" : `${Number(participant.eventCount ?? 0)} event${Number(participant.eventCount ?? 0) === 1 ? "" : "s"}`}</span></article>`).join("") : emptyCard("No competitors have joined yet");
   $("#flair").innerHTML = data.flairStandings.length ? data.flairStandings.slice(0, 6).map((row, index) => `<div class="tv-row"><strong>${index + 1}</strong><b>${esc(row.displayName)}</b><span>${esc(row.note ?? (Object.entries(row.categories ?? {}).map(([name, count]) => `${name} × ${count}`).join(" · ") || "Live props"))}</span><em>${Number(row.total).toLocaleString()}</em></div>`).join("") : emptyRow("No Flair props yet");
   const latest = data.flairFeed[0];
   $("#flair-latest").innerHTML = latest ? `<span>Latest official prop</span><b>${esc(String(latest.category).replaceAll("_", " "))}</b><p>${esc(latest.recipientDisplayName)}</p>` : `<span>Latest official prop</span><b>Waiting for glorious nonsense</b>`;
-  configurePanels(data, hasOfficialData);
+  configurePanels(data, hasOfficialData, photo);
 }
 
 const emptyRow = text => `<div class="tv-row empty"><b>${esc(text)}</b></div>`;
 const emptyCard = text => `<article class="empty"><b>${esc(text)}</b></article>`;
 
-function configurePanels(data, hasOfficialData) {
-  const enabled = [
-    ["idle", !hasOfficialData], ["call", Boolean(data.featuredMatch)], ["queue", data.queue.length > 0],
-    ["cannon", data.cannonLanes.length > 0], ["standings", true], ["yard", data.stations.length > 0], ["flair", true],
-  ].filter(([, show]) => show).map(([name]) => name);
-  if (!enabled.length) enabled.push("idle");
+function renderMusic(music = normalizePublicMusicQueue(null)) {
+  if (music.status === "unavailable") {
+    $("#now-playing").innerHTML = `<article class="music-state unavailable"><span>Live jukebox</span><b>Queue unavailable</b><p>The music service could not be reached. The TV will keep trying.</p></article>`;
+    $("#music-queue").innerHTML = emptyRow("No live queue data available");
+    return;
+  }
+  if (music.nowPlaying) {
+    $("#now-playing").innerHTML = `<article><span>Now playing</span><b>${esc(music.nowPlaying.title)}</b><p>${esc(music.nowPlaying.artist || "Artist unavailable")}${music.nowPlaying.requestedBy ? ` · requested by ${esc(music.nowPlaying.requestedBy)}` : ""}</p></article>`;
+  } else {
+    $("#now-playing").innerHTML = `<article class="music-state"><span>Now playing</span><b>${music.status === "empty" ? "Nothing playing right now" : "Between tracks"}</b></article>`;
+  }
+  $("#music-queue").innerHTML = music.queue.length ? music.queue.slice(0, 6).map(track => `<div class="tv-row"><strong>${track.position}</strong><b>${esc(track.title)}</b><span>${esc(track.artist || "Artist unavailable")}</span><em>${track.requestedBy ? `for ${esc(track.requestedBy)}` : "queued"}</em></div>`).join("") : emptyRow("The request queue is empty");
+}
+
+function configurePanels(data, hasOfficialData, photo) {
+  const enabled = enabledPanelNames(data, { hasOfficialData, hasPhoto: Boolean(photo), wifiAvailable });
   if (!panelSetChanged(panelSignature, enabled)) return;
   const currentName = enabledPanels[panelIndex];
   enabledPanels = enabled;
@@ -180,9 +237,10 @@ function configurePanels(data, hasOfficialData) {
 function showPanel(enabled, index) {
   panelIndex = Math.max(0, index);
   const name = enabled[panelIndex] ?? enabled[0];
+  document.body.classList.toggle("dedicated-qr-active", name === "join" || name === "wifi");
   $$(".tv-panel").forEach(panel => panel.classList.toggle("active", panel.dataset.panel === name));
   $$("#rotation-dots button").forEach(button => button.classList.toggle("active", button.dataset.show === name));
-  panelSeconds = 12;
+  panelSeconds = 16;
   $("#next-in").textContent = String(panelSeconds);
 }
 
@@ -247,10 +305,23 @@ function connectEvents() {
   source.onerror = () => setConnection("reconnecting");
 }
 
+async function detectWifiPanel() {
+  try {
+    const response = await fetch("/assets/wifi-join-qr.png", { method: "HEAD", credentials: "same-origin", cache: "no-store" });
+    wifiAvailable = response.ok;
+  } catch {
+    wifiAvailable = false;
+  }
+  if (wifiAvailable) $("#wifi-join-qr").src = "/assets/wifi-join-qr.png";
+  else $("#wifi-join-qr").removeAttribute("src");
+  if (broadcast) render(broadcast);
+}
+
 function init() {
   document.body.classList.toggle("demo-mode", demoMode);
   $("#tv-qr").innerHTML = `<div class="qr-wrap" aria-label="Scan to sign up"><img src="/assets/signup-qr.png" alt="Signup QR code"><b>SCAN TO JOIN</b></div>`;
   bindControls();
+  void detectWifiPanel();
   updateTime();
   window.setInterval(updateTime, 1_000);
   window.addEventListener("offline", () => setConnection("reconnecting"));

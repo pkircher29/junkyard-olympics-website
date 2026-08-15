@@ -13,9 +13,9 @@ android {
         applicationId = "com.junkyardolympics.tv"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
-        buildConfigField("String", "KIOSK_URL", "\"http://192.168.1.101:8790/tv.html\"")
+        versionCode = 5
+        versionName = "1.4-broadcast"
+        buildConfigField("String", "KIOSK_URL", "\"http://192.168.1.101:8791/tv.html\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

@@ -27,6 +27,11 @@
       <img class="brand-poster" src="/assets/junkyard-reference.webp" alt="Junkyard Olympics cannon artwork">
     </section>
 
+    <section id="photo-panel" class="tv-panel photo-panel" data-panel="constellation">
+      <img id="photo-wall-image" alt="Approved Junkyard Constellation photo">
+      <div class="photo-plaque"><span class="tv-kicker">Junkyard Constellation</span><h1 id="photo-wall-title"></h1><p id="photo-wall-caption"></p><small id="photo-wall-names"></small></div>
+    </section>
+
     <section class="tv-panel" data-panel="call" id="call-panel">
       <div class="panel-grid">
         <div>
@@ -42,6 +47,10 @@
     <section class="tv-panel" data-panel="queue">
       <span class="tv-kicker">Upcoming queue</span><h1>On deck</h1><div class="tv-table" id="queue"></div>
     </section>
+    <section class="tv-panel music-panel" data-panel="music">
+      <span class="tv-kicker">Paul's live party jukebox</span><h1>Music queue</h1>
+      <div class="now-playing" id="now-playing"></div><div class="tv-table" id="music-queue"></div>
+    </section>
     <section class="tv-panel" data-panel="cannon">
       <span class="tv-kicker">Junkyard Cannon · Official run progress</span><h1>Cannon lanes</h1><div class="cannon-tv" id="cannon-lanes"></div>
     </section>
@@ -51,8 +60,20 @@
     <section class="tv-panel" data-panel="yard">
       <span class="tv-kicker">Official station status</span><h1>Around the yard</h1><div class="station-grid" id="yard"></div>
     </section>
+    <section class="tv-panel roster-panel" data-panel="roster">
+      <span class="tv-kicker">Everybody in the yard</span><h1>Full roster</h1><div class="roster-grid" id="roster"></div>
+    </section>
     <section class="tv-panel" data-panel="flair">
       <span class="tv-kicker">Live Flair · Separate competition</span><h1>Flair feed</h1><div class="tv-table" id="flair"></div><aside class="flair-call" id="flair-latest"></aside>
+    </section>
+
+    <section class="tv-panel qr-panel" data-panel="join">
+      <div class="qr-screen-copy"><span class="tv-kicker">Your competitor pass starts here</span><h1>Join the Olympics</h1><p>Scan this code to open <b>JunkyardOlympics.com</b>, claim your name, and pick your events.</p></div>
+      <div class="qr-screen-code"><img src="/assets/join-site-qr.png" alt="QR code for JunkyardOlympics.com"><b>JUNKYARDOLYMPICS.COM</b><span>Website · Signup · Events · Music</span></div>
+    </section>
+    <section class="tv-panel qr-panel wifi-panel" data-panel="wifi">
+      <div class="qr-screen-copy"><span class="tv-kicker">Get onto the yard network</span><h1>Join event Wi-Fi</h1><p>Open your camera and scan. Your phone will offer to join the Junkyard Olympics network automatically.</p></div>
+      <div class="qr-screen-code"><img id="wifi-join-qr" alt="QR code to join the event Wi-Fi"><b>JUNKYARD OLYMPICS WI-FI</b><span>Network: Junkyard Olympics · Scan to join</span></div>
     </section>
 
     <aside class="signup-card" id="signup-card"><div id="tv-qr"></div><p>Scan to sign up</p></aside>
@@ -70,7 +91,7 @@
       <button id="full" class="tv-btn">Full screen</button>
     </div>
     <span class="remote-hint">Remote: ← previous · OK / → next</span>
-    <span>Auto in <b id="next-in">12</b>s</span>
+    <span>Auto in <b id="next-in">16</b>s</span>
   </footer>
   <script type="module" src="/js/tv-broadcast.js"></script>
 </body>

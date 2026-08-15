@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
 ANDROID = "{http://schemas.android.com/apk/res/android}"
-URL = "http://192.168.1.101:8790/tv.html"
+URL = "http://192.168.1.101:8791/tv.html"
 PACKAGE = "com.junkyardolympics.tv"
 
 
@@ -18,8 +18,8 @@ class AndroidTvStaticContract(unittest.TestCase):
             'namespace = "com.junkyardolympics.tv"',
             "minSdk = 26",
             "targetSdk = 34",
-            "versionCode = 2",
-            'versionName = "1.1"',
+            "versionCode = 5",
+            'versionName = "1.4-broadcast"',
             URL,
         ):
             self.assertIn(contract, gradle)

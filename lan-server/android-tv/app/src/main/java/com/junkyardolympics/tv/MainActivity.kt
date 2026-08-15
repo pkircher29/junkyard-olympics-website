@@ -105,7 +105,7 @@ class MainActivity : Activity() {
     }
 
     private fun isApprovedUrl(uri: Uri): Boolean =
-        uri.scheme == "http" && uri.host == "192.168.1.101" && uri.port == 8790 && uri.path == "/tv.html"
+        uri.scheme == "http" && uri.host == "192.168.1.101" && uri.port == 8791 && uri.path == "/tv.html"
 
     private fun scheduleRetry() {
         if (mainFrameFailed) return

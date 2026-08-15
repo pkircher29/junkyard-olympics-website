@@ -35,6 +35,57 @@ export function steppedPanelIndex(index, direction, panelCount) {
   return ((index + direction) % panelCount + panelCount) % panelCount;
 }
 
+const musicTrackView = entry => {
+  const track = entry?.track ?? entry;
+  if (!track || typeof track !== "object") return null;
+  const title = track.name ?? track.title;
+  if (!title) return null;
+  const artists = Array.isArray(track.artists)
+    ? track.artists.map(artist => typeof artist === "string" ? artist : artist?.name).filter(Boolean).join(", ")
+    : track.artist ?? track.artistName ?? "";
+  return {
+    title: String(title),
+    artist: String(artists),
+    requestedBy: String(entry?.user_name ?? entry?.requested_by ?? entry?.requestedBy ?? ""),
+  };
+};
+
+export function normalizePublicMusicQueue(payload) {
+  if (!payload || typeof payload !== "object" || !("now_playing" in payload) || !Array.isArray(payload.up_next)) {
+    return { status: "unavailable", nowPlaying: null, queue: [] };
+  }
+  const nowPlaying = payload.now_playing ? musicTrackView(payload.now_playing) : null;
+  const queue = payload.up_next.map((entry, index) => {
+    const track = musicTrackView(entry);
+    return track ? { position: Number(entry?.pos) || index + 1, ...track } : null;
+  }).filter(Boolean);
+  return { status: nowPlaying || queue.length ? "ready" : "empty", nowPlaying, queue };
+}
+
+export function enabledPanelNames(data = {}, { hasOfficialData = false, hasPhoto = false, wifiAvailable = false } = {}) {
+  const enabled = [
+    ["idle", !hasOfficialData && !hasPhoto],
+    ["call", Boolean(data.featuredMatch)],
+    ["queue", Boolean(data.queue?.length)],
+    ["music", Boolean(data.music)],
+    ["cannon", Boolean(data.cannonLanes?.length)],
+    ["standings", Boolean(data.standings?.length)],
+    ["yard", Boolean(data.stations?.length)],
+    ["roster", Boolean(data.roster?.length)],
+    ["flair", Boolean(data.flairStandings?.length || data.flairFeed?.length)],
+    ["constellation", Boolean(hasPhoto)],
+    ["join", true],
+    ["wifi", Boolean(wifiAvailable)],
+  ].filter(([, show]) => show).map(([name]) => name);
+  return enabled;
+}
+
+export function normalizeBroadcastRoster(participants = []) {
+  return participants.map(participant => typeof participant === "string"
+    ? { displayName: participant, active: 1, eventCount: 0 }
+    : participant);
+}
+
 export function mapApiBroadcastData(state = {}, championship = {}, flair = {}) {
   const participants = byId(state.participants);
   const events = byId(state.events);
@@ -98,6 +149,7 @@ export function mapApiBroadcastData(state = {}, championship = {}, flair = {}) {
     standings: championship.standings ?? [],
     podium: championship.podium ?? [],
     stations,
+    roster: normalizeBroadcastRoster(state.participants ?? []),
     flairStandings: flair.standings ?? (Array.isArray(flair) ? flair : []),
     flairFeed: state.flairFeed ?? [],
     results: matches.filter(match => match.status === "FINAL" && match.completedAt).map(match => ({
